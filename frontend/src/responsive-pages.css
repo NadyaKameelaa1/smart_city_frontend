@@ -1,0 +1,308 @@
+/* ============================================================
+   responsive-pages.css
+   Tambahkan import ini di main.jsx atau index.css:
+   @import './responsive-pages.css';
+   ============================================================ */
+
+/* ============================================================
+   SHARED: Detail page layout (BeritaDetail & PengumumanDetail)
+   ============================================================ */
+
+.detail-page-wrap {
+    padding-top: 90px;
+    padding-bottom: 80px;
+    background: var(--cream);
+    min-height: 100vh;
+}
+
+/* Grid artikel + sidebar */
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 40px;
+    align-items: start;
+}
+
+/* Header card artikel */
+.detail-header-card {
+    padding: 40px 48px;
+}
+
+/* Body card artikel */
+.detail-body-card {
+    padding: 40px 48px;
+}
+
+/* ── Tablet ── */
+@media (max-width: 1024px) {
+    .detail-grid {
+        grid-template-columns: 1fr 300px;
+        gap: 28px;
+    }
+    .detail-header-card {
+        padding: 32px 36px;
+    }
+    .detail-body-card {
+        padding: 32px 36px;
+    }
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+    .detail-page-wrap {
+        padding-top: 76px;
+        padding-bottom: 48px;
+    }
+    .detail-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .detail-header-card {
+        padding: 24px 20px;
+    }
+    .detail-body-card {
+        padding: 24px 20px;
+    }
+    /* Sidebar jadi bawah artikel */
+    .detail-aside {
+        position: static !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .detail-header-card {
+        padding: 20px 16px;
+    }
+    .detail-body-card {
+        padding: 20px 16px;
+    }
+}
+
+/* ============================================================
+   BERITA DETAIL
+   ============================================================ */
+
+.berita-detail-img {
+    width: 100%;
+    aspect-ratio: 16 / 6;
+    object-fit: cover;
+}
+
+@media (max-width: 768px) {
+    .berita-detail-img {
+        aspect-ratio: 16 / 9;
+    }
+}
+
+@media (max-width: 480px) {
+    .berita-detail-img {
+        aspect-ratio: 4 / 3;
+    }
+}
+
+/* ============================================================
+   PENGUMUMAN DETAIL
+   ============================================================ */
+
+/* Sidebar sticky hanya di desktop */
+@media (max-width: 768px) {
+    .pengumuman-detail-aside {
+        position: static !important;
+        top: auto !important;
+    }
+}
+
+/* ============================================================
+   PAGE LIST CARDS — Wisata, Berita, Event, Pengumuman
+   Font dan card size menyesuaikan viewport
+   ============================================================ */
+
+/* ── Wisata grid ── */
+@media (max-width: 1024px) {
+    .wisata-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+@media (max-width: 640px) {
+    .wisata-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .wisata-card-name   { font-size: clamp(15px, 4vw, 20px); }
+    .wisata-card-desc   { font-size: clamp(12px, 3vw, 13.5px); }
+    .wisata-card-body   { padding: 16px; }
+}
+
+/* ── Berita grid ── */
+@media (max-width: 1024px) {
+    .berita-grid-full {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+@media (max-width: 640px) {
+    .berita-grid-full {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    .berita-card-full__title  { font-size: clamp(14px, 4vw, 16px); }
+    .berita-card-full__excerpt{ font-size: clamp(12px, 3vw, 13px); }
+    .berita-featured-full     { height: clamp(200px, 50vw, 380px); }
+    .berita-featured-full__title { font-size: clamp(16px, 4.5vw, 26px); }
+    .berita-featured-full__body  { padding: 16px 18px; }
+}
+
+/* ── Event grid ── */
+@media (max-width: 1024px) {
+    .event-grid-full {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+@media (max-width: 640px) {
+    .event-grid-full {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+}
+
+/* ── Pelayanan cards grid ── */
+@media (max-width: 1024px) {
+    .pelayanan-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+}
+@media (max-width: 480px) {
+    .pelayanan-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .pelayanan-card-new__name { font-size: clamp(13px, 3.5vw, 14.5px); }
+    .pelayanan-card-new__desc { font-size: clamp(11px, 2.8vw, 12.5px); }
+}
+
+/* ── Pengumuman list ── */
+@media (max-width: 768px) {
+    .pengumuman-full-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .pengumuman-full-sidebar {
+        position: static !important;
+    }
+    .pengumuman-full-num {
+        font-size: clamp(22px, 6vw, 32px);
+        min-width: 36px;
+    }
+    .pengumuman-full-title {
+        font-size: clamp(13px, 3.5vw, 15px);
+    }
+    .pengumuman-full-item {
+        padding: 16px 14px;
+        gap: 12px;
+    }
+}
+@media (max-width: 480px) {
+    .pengumuman-full-top {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .pengumuman-full-badges {
+        flex-shrink: unset;
+    }
+}
+
+/* ── Page toolbar responsive ── */
+@media (max-width: 640px) {
+    .page-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .page-filter-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .page-filter-tabs::-webkit-scrollbar { display: none; }
+    .page-filter-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 12px;
+        padding: 7px 14px;
+    }
+}
+
+/* ── Pelayanan toolbar responsive ── */
+@media (max-width: 640px) {
+    .pelayanan-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pelayanan-search-wrap {
+        max-width: 100%;
+    }
+    .pelayanan-filter-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .pelayanan-filter-tabs::-webkit-scrollbar { display: none; }
+    .pelayanan-filter-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .pelayanan-layout {
+        grid-template-columns: 1fr;
+    }
+    .pelayanan-sidebar {
+        position: static;
+    }
+}
+
+/* ============================================================
+   FONT SCALING — clamp() untuk semua heading utama
+   ============================================================ */
+
+.page-hero-v2__title {
+    font-size: clamp(22px, 5vw, 48px) !important;
+}
+.page-hero-v2__desc {
+    font-size: clamp(13px, 2.5vw, 15px) !important;
+}
+
+.section-title {
+    font-size: clamp(20px, 4vw, 42px) !important;
+}
+.section-desc {
+    font-size: clamp(13px, 2vw, 16px) !important;
+}
+
+/* ============================================================
+   TIKET PAGE — responsive
+   ============================================================ */
+@media (max-width: 900px) {
+    .tiket-detail-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .tiket-order-summary {
+        position: static !important;
+    }
+}
+@media (max-width: 480px) {
+    .tiket-step-indicator {
+        gap: 0 !important;
+    }
+    .tiket-step-connector {
+        width: 40px !important;
+    }
+    .tiket-step-label {
+        font-size: 10px !important;
+    }
+}
