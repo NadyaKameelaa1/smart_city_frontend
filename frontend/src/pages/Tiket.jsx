@@ -1,6 +1,7 @@
 // src/pages/Tiket.jsx
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { QRCodeCanvas } from 'qrcode.react';
 import api from '../api/axios';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -25,6 +26,35 @@ const getHargaByDate = (prices, dateStr) => {
 };
 
 const BASE_IMAGE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '') + '/storage/';
+const PAYMENT_APP_URL = (import.meta.env.VITE_PURBALINGGA_PAY_URL || 'http://localhost:5174').replace(/\/$/, '');
+const PAYMENT_APP_ORIGIN = new URL(PAYMENT_APP_URL).origin;
+const PAYMENT_MESSAGE_TYPE = 'PURBALINGGA_PAY_QRIS_SUCCESS';
+
+const makePaymentSessionId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+
+    return `qris-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const buildQrisPayload = ({ sessionId, wisata, qty, form, tanggal, total }) => JSON.stringify({
+    paymentType: 'ticket_qris',
+    cardId: sessionId,
+    sessionId,
+    wisataId: wisata?.id,
+    wisataName: wisata?.nama,
+    merchantName: 'Purbalingga Smart City',
+    wisataName: wisata?.nama,
+    saldo: total,
+    nominal: total,
+    description: `Pembayaran tiket ${wisata?.nama || 'wisata'} untuk ${form.nama}`,
+    customerName: form.nama,
+    customerPhone: form.hp,
+    travelDate: tanggal,
+    adultQty: qty.dewasa,
+    childQty: qty.anak,
+});
 
 // ─── CSS ─────────────────────────────────────────────────────
 const STYLE = `
@@ -625,14 +655,120 @@ function Step2({ form, setForm, onNext, onBack, userProfile }) {
 
 // ─── Step 3: Pembayaran ───────────────────────────────────────
 function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
-    const [loading, setLoading] = useState(false);
+    const [qrisOpen, setQrisOpen] = useState(false);
+    const [qrisSessionId, setQrisSessionId] = useState('');
+    const [paymentStatus, setPaymentStatus] = useState('idle');
+    const [paymentMessage, setPaymentMessage] = useState('Klik metode QRIS untuk menampilkan kode pembayaran.');
+    const [paymentError, setPaymentError] = useState('');
+    const [openingApp, setOpeningApp] = useState(false);
+    const [submittingOrder, setSubmittingOrder] = useState(false);
+    const handlingSuccessRef = useRef(false);
+
     const harga = getHargaByDate(wisata?.prices, tanggal);
     const total = wisata ? qty.dewasa * (harga.harga_dewasa || 0) + qty.anak * (harga.harga_anak || 0) : 0;
     const tglFormatted = tanggal
         ? new Date(tanggal + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         : '-';
 
-    const handleBayar = () => { setLoading(true); setTimeout(() => { setLoading(false); onNext(); }, 2000); };
+    const qrisPayload = useMemo(() => {
+        if (!qrisSessionId) return '';
+        return buildQrisPayload({
+            sessionId: qrisSessionId,
+            wisata,
+            qty,
+            form,
+            tanggal,
+            total,
+        });
+    }, [form, qrisSessionId, qty, tanggal, total, wisata]);
+
+    const resetPaymentState = () => {
+        setPaymentStatus('idle');
+        setPaymentMessage('Klik metode QRIS untuk menampilkan kode pembayaran.');
+        setPaymentError('');
+        handlingSuccessRef.current = false;
+    };
+
+    const openQrisPayment = () => {
+        const sessionId = makePaymentSessionId();
+        setQrisSessionId(sessionId);
+        setQrisOpen(true);
+        setPaymentStatus('waiting');
+        setPaymentError('');
+        setPaymentMessage('Tunjukkan QR ini ke aplikasi Purbalingga Pay untuk dipindai.');
+    };
+
+    const openPaymentApp = () => {
+        setOpeningApp(true);
+
+        const popup = window.open(`${PAYMENT_APP_URL}/qr?tab=qr`, '_blank', 'width=430,height=760');
+
+        if (!popup) {
+            setOpeningApp(false);
+            setPaymentError('Popup diblokir browser. Izinkan popup lalu tekan tombol ini lagi.');
+            return;
+        }
+
+        popup.focus();
+        setOpeningApp(false);
+    };
+
+    useEffect(() => {
+        if (!qrisSessionId) return undefined;
+
+        const handleMessage = async (event) => {
+            if (event.origin !== PAYMENT_APP_ORIGIN) return;
+
+            const payload = event.data;
+            if (!payload || payload.type !== PAYMENT_MESSAGE_TYPE) return;
+            if (handlingSuccessRef.current) return;
+
+            let sessionId = payload.sessionId || '';
+            if (!sessionId && payload.rawValue) {
+                try {
+                    const parsed = JSON.parse(payload.rawValue);
+                    sessionId = parsed.sessionId || '';
+                } catch {
+                    sessionId = '';
+                }
+            }
+
+            if (sessionId !== qrisSessionId) return;
+
+            handlingSuccessRef.current = true;
+            setSubmittingOrder(true);
+            setPaymentStatus('processing');
+            setPaymentMessage('Pembayaran terdeteksi. Menyimpan tiket...');
+            setPaymentError('');
+
+            try {
+                await api.post('/tiket', {
+                    wisata_id: wisata.id,
+                    tanggal_kunjungan: tanggal,
+                    jumlah_dewasa: qty.dewasa,
+                    jumlah_anak: qty.anak,
+                    total_harga: total,
+                    metode_pembayaran: 'QRIS',
+                    kode_order: payload.kodeOrder || undefined,
+                });
+
+                setPaymentStatus('success');
+                setPaymentMessage('Pembayaran QRIS berhasil. Mengarahkan ke tahap selesai...');
+                setQrisOpen(false);
+                onNext();
+            } catch (err) {
+                handlingSuccessRef.current = false;
+                setPaymentStatus('error');
+                setPaymentError(err.response?.data?.message || 'Pembayaran berhasil, tetapi penyimpanan tiket gagal.');
+                setPaymentMessage('Ada kendala saat menyimpan tiket. Silakan coba lagi.');
+            } finally {
+                setSubmittingOrder(false);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [onNext, qrisSessionId, tanggal, total, wisata, qty.dewasa, qty.anak]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -671,27 +807,231 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                 <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-dark)', marginBottom: 12 }}>
                     <i className="fas fa-credit-card" style={{ color: 'var(--teal-500)', marginRight: 8 }} />Metode Pembayaran
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', border: '2px solid var(--teal-500)', borderRadius: 'var(--radius-md)', cursor: 'pointer', background: 'var(--teal-50)', transition: 'all .15s' }}>
+                <button
+                    type="button"
+                    onClick={openQrisPayment}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: '16px 20px',
+                        border: '2px solid var(--teal-500)',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        background: 'linear-gradient(135deg, var(--teal-50), #ecfeff)',
+                        transition: 'all .15s',
+                        textAlign: 'left',
+                    }}
+                >
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <i className="fas fa-qrcode" style={{ color: 'white', fontSize: 15 }} />
                     </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--dark)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            SMARTPAY
+                            QRIS
                             <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 50, background: '#dcfce7', color: '#16a34a' }}>✓ Direkomendasikan</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Klik untuk menampilkan QR dan langkah pembayaran melalui Purbalingga Pay.
                         </div>
                     </div>
                     <i className="fas fa-check-circle" style={{ color: 'var(--teal-500)', fontSize: 18, flexShrink: 0 }} />
-                </label>
+                </button>
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    Setelah QR dipindai dan pembayaran sukses di aplikasi payment, halaman ini akan otomatis lanjut ke tahap selesai.
+                </div>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={onBack} disabled={loading} className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', padding: '14px' }}>
+                <button onClick={onBack} disabled={submittingOrder} className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', padding: '14px' }}>
                     <i className="fas fa-arrow-left" /> Kembali
                 </button>
-                <button onClick={handleBayar} disabled={loading} className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '14px', fontSize: 15 }}>
-                    {loading ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : <><i className="fas fa-lock" /> Bayar {formatRupiah(total)}</>}
+                <button onClick={openQrisPayment} disabled={submittingOrder} className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '14px', fontSize: 15 }}>
+                    {submittingOrder ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : <><i className="fas fa-qrcode" /> Buka QRIS {formatRupiah(total)}</>}
                 </button>
             </div>
+
+            {qrisOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15,23,42,.58)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 60,
+                    padding: 20,
+                }}>
+                    <div style={{
+                        width: 'min(620px, 100%)',
+                        background: 'white',
+                        borderRadius: 24,
+                        boxShadow: '0 24px 60px rgba(15,23,42,.25)',
+                        overflow: 'hidden',
+                    }}>
+                        <div style={{
+                            padding: '20px 22px',
+                            background: 'linear-gradient(135deg, var(--teal-700), var(--teal-900))',
+                            color: 'white',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            alignItems: 'center',
+                        }}>
+                            <div>
+                                <div style={{ fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', opacity: .8 }}>QRIS Payment</div>
+                                <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700 }}>Scan untuk bayar tiket</div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setQrisOpen(false);
+                                    resetPaymentState();
+                                }}
+                                style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: '50%',
+                                    border: 'none',
+                                    background: 'rgba(255,255,255,.15)',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <i className="fas fa-times" />
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 0 }}>
+                            <div style={{ padding: 24, borderRight: '1px solid var(--border)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                                    <div style={{ padding: 16, borderRadius: 20, background: 'white', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+                                        {qrisPayload ? (
+                                            <QRCodeCanvas
+                                                value={qrisPayload}
+                                                size={240}
+                                                level="M"
+                                                includeMargin
+                                                style={{ display: 'block' }}
+                                            />
+                                        ) : (
+                                            <div style={{
+                                                width: 240,
+                                                height: 240,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'var(--text-muted)',
+                                                fontSize: 13,
+                                                textAlign: 'center',
+                                            }}>
+                                                QR belum siap
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
+                                    <span style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--teal-50)', color: 'var(--teal-700)', fontSize: 12, fontWeight: 700 }}>
+                                        {formatRupiah(total)}
+                                    </span>
+                                    <span style={{ padding: '6px 10px', borderRadius: 999, background: '#f0fdf4', color: '#15803d', fontSize: 12, fontWeight: 700 }}>
+                                        {wisata?.nama}
+                                    </span>
+                                </div>
+
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, textAlign: 'center' }}>
+                                    Tunjukkan QR ini ke aplikasi <strong>Purbalingga Pay</strong>, lalu ikuti konfirmasi pembayaran di sana.
+                                </div>
+
+                                {paymentError && (
+                                    <div style={{
+                                        marginTop: 16,
+                                        padding: '12px 14px',
+                                        background: '#fef2f2',
+                                        border: '1px solid #fecaca',
+                                        borderRadius: 12,
+                                        color: '#b91c1c',
+                                        fontSize: 13,
+                                    }}>
+                                        {paymentError}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ padding: 24, background: '#f8fafc' }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
+                                    Langkah Pembayaran
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {[
+                                        'Klik tombol "Buka Purbalingga Pay" agar aplikasi payment terbuka dalam tab baru.',
+                                        'Di aplikasi payment, buka menu QR dan scan kode ini.',
+                                        'Konfirmasi nominal pembayaran yang muncul sesuai total tiket.',
+                                        'Setelah pembayaran sukses, halaman ini akan otomatis lanjut ke tahap selesai.',
+                                    ].map((text, index) => (
+                                        <div key={text} style={{
+                                            display: 'flex',
+                                            gap: 12,
+                                            padding: '12px 14px',
+                                            borderRadius: 14,
+                                            background: 'white',
+                                            border: '1px solid var(--border)',
+                                        }}>
+                                            <div style={{
+                                                width: 28,
+                                                height: 28,
+                                                borderRadius: '50%',
+                                                background: 'var(--teal-600)',
+                                                color: 'white',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                                fontSize: 12,
+                                                fontWeight: 800,
+                                            }}>
+                                                {index + 1}
+                                            </div>
+                                            <div style={{ fontSize: 13, color: 'var(--text-dark)', lineHeight: 1.6 }}>{text}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                    <button
+                                        type="button"
+                                        onClick={openPaymentApp}
+                                        className="btn btn-primary"
+                                        style={{ flex: 1, justifyContent: 'center', minWidth: 200 }}
+                                        disabled={openingApp}
+                                    >
+                                        {openingApp ? <><i className="fas fa-spinner fa-spin" /> Membuka...</> : <><i className="fas fa-external-link-alt" /> Buka Purbalingga Pay</>}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setQrisOpen(false);
+                                            resetPaymentState();
+                                        }}
+                                        className="btn btn-outline"
+                                        style={{ flex: 1, justifyContent: 'center', minWidth: 160 }}
+                                        disabled={submittingOrder}
+                                    >
+                                        Tutup
+                                    </button>
+                                </div>
+
+                                <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                                    Status: <strong>{paymentStatus === 'waiting' ? 'Menunggu scan' : paymentStatus === 'processing' ? 'Memproses' : paymentStatus === 'success' ? 'Berhasil' : paymentStatus === 'error' ? 'Gagal' : 'Siap'}</strong>
+                                    <div style={{ marginTop: 4 }}>{paymentMessage}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

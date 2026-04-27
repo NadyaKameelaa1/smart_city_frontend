@@ -6,9 +6,43 @@ use App\Http\Controllers\Controller;
 use App\Models\TicketOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class TicketOrderController extends Controller
 {
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+
+        $data = $request->validate([
+            'wisata_id'          => ['required', 'exists:wisata,id'],
+            'tanggal_kunjungan'   => ['required', 'date'],
+            'jumlah_dewasa'      => ['required', 'integer', 'min:0'],
+            'jumlah_anak'        => ['required', 'integer', 'min:0'],
+            'total_harga'        => ['required', 'integer', 'min:0'],
+            'metode_pembayaran'  => ['required', 'string', 'max:50'],
+            'kode_order'         => ['nullable', 'string', 'max:30', 'unique:ticket_orders,kode_order'],
+        ]);
+
+        $order = TicketOrder::create([
+            'kode_order'        => $data['kode_order'] ?? 'TKT-' . Str::upper(Str::random(10)),
+            'user_id'           => $user->id,
+            'wisata_id'         => $data['wisata_id'],
+            'tanggal_kunjungan' => $data['tanggal_kunjungan'],
+            'jumlah_dewasa'     => $data['jumlah_dewasa'],
+            'jumlah_anak'       => $data['jumlah_anak'],
+            'total_harga'       => $data['total_harga'],
+            'status_tiket'      => 'Aktif',
+            'metode_pembayaran' => $data['metode_pembayaran'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tiket berhasil dibuat.',
+            'data'    => $order,
+        ], 201);
+    }
+
     /**
      * GET /api/tiket-saya
      * Ambil semua ticket_orders milik user yang sedang login,

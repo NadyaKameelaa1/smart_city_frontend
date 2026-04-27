@@ -35,6 +35,7 @@ use App\Models\Wisata;
 // });
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/tiket',       [TicketOrderController::class, 'store']);
         Route::get('/tiket',        [TicketOrderController::class, 'index']);
         Route::get('/tiket/{kodeOrder}', [TicketOrderController::class, 'show']);
         
