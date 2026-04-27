@@ -52,6 +52,8 @@ const FULLSCREEN_PAGES = [
     '/peta', 
     '/login', 
     '/daftar', 
+    '/callback',
+    '/sso-callback',
     '/admin', 
     '/admin/', 
     '/admin/informasi-wisata', 
@@ -96,6 +98,7 @@ function Layout() {
                     <Route path="/login"                  element={<Login />} />
                     <Route path="/daftar"                  element={<Daftar />} />
 
+                    <Route path="/callback" element={<SsoCallback />} />
                     <Route path="/sso-callback" element={<SsoCallback />} />
 
                     <Route path="/"                  element={<Home />} />

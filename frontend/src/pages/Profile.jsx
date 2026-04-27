@@ -1,6 +1,7 @@
 // src/pages/Profile.jsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getStoredSsoUser } from '../lib/ssoSession';
 
 // Helper: ambil inisial maks 2 huruf dari nama
 function getInitials(name = '') {
@@ -45,7 +46,20 @@ function EmptyField() {
 }
 
 export default function Profile() {
-    const user = dummyUser;
+    const storedUser = getStoredSsoUser();
+    const user = storedUser
+        ? {
+            ...dummyUser,
+            username: storedUser.username || dummyUser.username,
+            nama: storedUser.name || dummyUser.nama,
+            email: storedUser.email || dummyUser.email,
+            no_telp: storedUser.no_hp || storedUser.phone || dummyUser.no_telp,
+            kota_asal: storedUser.kecamatan || storedUser.city || dummyUser.kota_asal,
+            kecamatan: storedUser.kecamatan || dummyUser.kecamatan,
+            tanggal_lahir: storedUser.tanggal_lahir || storedUser.birthDate || dummyUser.tanggal_lahir,
+            jenis_kelamin: storedUser.jenis_kelamin || storedUser.gender || dummyUser.jenis_kelamin,
+        }
+        : dummyUser;
     const initials = getInitials(user.nama);
 
     const doneCount = checklistItems.filter((i) => i.check(user)).length;
@@ -570,4 +584,3 @@ export default function Profile() {
         </>
     );
 }
-

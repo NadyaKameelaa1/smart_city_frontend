@@ -1,6 +1,14 @@
 // src/components/Navbar.jsx
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import api from '../api/axios';
+import {
+    clearSsoSession,
+    getInitials,
+    getStoredSsoSession,
+    listenSsoSessionChange,
+    rememberReturnTo,
+} from '../lib/ssoSession';
 
 const navLinks = [
     { label: 'Beranda',    href: '/#home',       icon: 'fa-home' },
@@ -18,26 +26,17 @@ const navLinks = [
     { label: 'Peta',       href: '/peta',        icon: 'fa-map-marked-alt' },
 ];
 
-const DUMMY_USER = { nama: 'Aizar Faruq Nafiul Umam', loggedIn: false };
-
-function getInitials(name = '') {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return '?';
-    if (parts.length === 1) return parts[0][0].toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
 export default function Navbar() {
     const [scrolled,     setScrolled]     = useState(false);
     const [mobileOpen,   setMobileOpen]   = useState(false);
     const [searchOpen,   setSearchOpen]   = useState(false);
     const [searchVal,    setSearchVal]    = useState('');
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
     // Track which mobile dropdown is open
     const [mobileDropdown, setMobileDropdown] = useState(null);
+    const [session, setSession] = useState(() => getStoredSsoSession());
     const location = useLocation();
-
-    const user = DUMMY_USER;
+    const user = session?.user || null;
+    const isLoggedIn = Boolean(session?.token);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 50);
@@ -48,7 +47,6 @@ export default function Navbar() {
     // Tutup semua menu saat navigasi
     useEffect(() => {
         setMobileOpen(false);
-        setUserMenuOpen(false);
         setMobileDropdown(null);
     }, [location]);
 
@@ -63,21 +61,15 @@ export default function Navbar() {
             if (e.key === 'Escape') {
                 setSearchOpen(false);
                 setMobileOpen(false);
-                setUserMenuOpen(false);
             }
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
     }, []);
 
-    useEffect(() => {
-        if (!userMenuOpen) return;
-        const handler = (e) => {
-            if (!e.target.closest('.user-menu-wrap')) setUserMenuOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, [userMenuOpen]);
+    useEffect(() => listenSsoSessionChange(() => {
+        setSession(getStoredSsoSession());
+    }), []);
 
     const handleSearch = () => {
         if (!searchVal.trim()) return;
@@ -100,59 +92,32 @@ export default function Navbar() {
         setMobileOpen(false);
     };
 
+    const handleAuthAction = async () => {
+        if (!isLoggedIn) {
+            rememberReturnTo(`${location.pathname}${location.search}${location.hash}`);
+            window.location.href = 'http://localhost:8000/auth/sso/redirect';
+            return;
+        }
+
+        try {
+            await api.post('/auth/logout');
+        } catch (error) {
+            console.warn('Logout backend gagal, lanjut membersihkan sesi lokal.', error);
+        } finally {
+            clearSsoSession();
+            setSession(null);
+            navigateHome();
+        }
+    };
+
+    const navigateHome = () => {
+        window.location.href = '/';
+    };
+
     return (
         <>
             <style>{`
                 /* ── User avatar button ── */
-                .user-menu-wrap { position: relative; }
-                .user-avatar-btn {
-                    display: flex; align-items: center; gap: 8px;
-                    padding: 4px 12px 4px 4px; border-radius: 50px;
-                    border: 1.5px solid var(--border); background: white;
-                    cursor: pointer; transition: var(--transition);
-                    font-family: var(--font-body);
-                }
-                .user-avatar-btn:hover { border-color: var(--teal-400); box-shadow: 0 2px 12px rgba(64,114,175,.12); }
-                .user-avatar-circle {
-                    width: 30px; height: 30px; border-radius: 50%;
-                    background: linear-gradient(135deg, var(--teal-600), var(--teal-800));
-                    display: flex; align-items: center; justify-content: center;
-                    font-family: var(--font-display); font-size: 11px; font-weight: 700;
-                    color: white; letter-spacing: 1px; flex-shrink: 0;
-                }
-                .user-avatar-name {
-                    font-size: 13px; font-weight: 600; color: var(--dark);
-                    max-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-                }
-                .user-avatar-btn .fa-chevron-down { font-size: 9px; color: var(--text-muted); transition: transform .2s; }
-                .user-avatar-btn.open .fa-chevron-down { transform: rotate(180deg); }
-
-                /* ── User dropdown ── */
-                .user-dropdown {
-                    position: absolute; top: calc(100% + 10px); right: 0;
-                    width: 220px; background: white; border-radius: var(--radius-md);
-                    box-shadow: var(--shadow-lg); border: 1px solid var(--border); padding: 8px;
-                    opacity: 0; visibility: hidden; transform: translateY(-8px);
-                    transition: all .25s cubic-bezier(.4,0,.2,1); z-index: 200;
-                }
-                .user-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
-                .user-dropdown-header { padding: 10px 12px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-                .user-dropdown-name { font-weight: 700; font-size: 14px; color: var(--dark); margin-bottom: 2px; }
-                .user-dropdown-email { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .user-dropdown-item {
-                    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
-                    border-radius: var(--radius-sm); font-size: 13.5px; color: var(--text-dark);
-                    transition: var(--transition); text-decoration: none;
-                    cursor: pointer; border: none; background: none;
-                    width: 100%; font-family: var(--font-body);
-                }
-                .user-dropdown-item:hover { background: var(--teal-50); color: var(--teal-700); }
-                .user-dropdown-item i { width: 16px; color: var(--teal-500); font-size: 13px; }
-                .user-dropdown-sep { height: 1px; background: var(--border); margin: 6px 0; }
-                .user-dropdown-item.logout { color: #b91c1c; }
-                .user-dropdown-item.logout i { color: #ef4444; }
-                .user-dropdown-item.logout:hover { background: #fef2f2; color: #991b1b; }
-
                 .btn-login {
                     display: flex; align-items: center; gap: 7px;
                     padding: 8px 18px; border-radius: 50px;
@@ -161,6 +126,12 @@ export default function Navbar() {
                     border: none; cursor: pointer; transition: var(--transition); text-decoration: none;
                 }
                 .btn-login:hover { background: var(--teal-700); transform: translateY(-1px); }
+                .btn-login.logout {
+                    background: #b91c1c;
+                }
+                .btn-login.logout:hover {
+                    background: #991b1b;
+                }
 
                 /* ── Hamburger animation ── */
                 .hamburger { background: none; border: none; }
@@ -290,41 +261,14 @@ export default function Navbar() {
 
                         {/* Actions */}
                         <div className="navbar-actions">
-                            {user.loggedIn ? (
-                                <div className="user-menu-wrap">
-                                    <button
-                                        className={`user-avatar-btn${userMenuOpen ? ' open' : ''}`}
-                                        onClick={() => setUserMenuOpen((v) => !v)}
-                                        aria-label="Menu akun"
-                                    >
-                                        <div className="user-avatar-circle">
-                                            {getInitials(user.nama)}
-                                        </div>
-                                        <span className="user-avatar-name">{user.nama.split(' ')[0]}</span>
-                                        <i className="fas fa-chevron-down" />
-                                    </button>
-                                    <div className={`user-dropdown${userMenuOpen ? ' open' : ''}`}>
-                                        <div className="user-dropdown-header">
-                                            <div className="user-dropdown-name">{user.nama}</div>
-                                            <div className="user-dropdown-email">nadya.kameela@gmail.com</div>
-                                        </div>
-                                        <Link to="/profile" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                                            <i className="fas fa-user-circle" /> Profil Saya
-                                        </Link>
-                                        <Link to="/riwayat" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                                            <i className="fas fa-ticket-alt" /> Riwayat Tiket
-                                        </Link>
-                                        <div className="user-dropdown-sep" />
-                                        <button className="user-dropdown-item logout" onClick={() => setUserMenuOpen(false)}>
-                                            <i className="fas fa-sign-out-alt" /> Keluar
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <a href="http://localhost:8000/auth/sso/redirect" className="btn-login">
-                                    <i className="fas fa-sign-in-alt" /> Login
-                                </a>
-                            )}
+                            <button
+                                type="button"
+                                className={`btn-login${isLoggedIn ? ' logout' : ''}`}
+                                onClick={handleAuthAction}
+                            >
+                                <i className={`fas ${isLoggedIn ? 'fa-sign-out-alt' : 'fa-sign-in-alt'}`} />
+                                {isLoggedIn ? 'Keluar' : 'Login'}
+                            </button>
 
                             {/* Hamburger */}
                             <button
@@ -375,11 +319,11 @@ export default function Navbar() {
             >
                 <div className="mobile-menu-panel">
                     {/* User info */}
-                    {user.loggedIn && (
+                    {isLoggedIn && (
                         <div className="mobile-user-info">
-                            <div className="mobile-avatar">{getInitials(user.nama)}</div>
+                            <div className="mobile-avatar">{getInitials(user?.name || user?.nama || user?.email || '')}</div>
                             <div>
-                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--dark)' }}>{user.nama}</div>
+                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--dark)' }}>{user?.name || user?.nama || user?.email}</div>
                                 <Link
                                     to="/profile"
                                     style={{ fontSize: 12, color: 'var(--teal-600)', fontWeight: 600, backgroundColor:'#eef3fa', borderRadius: 4, padding: '4px 8px' }}
@@ -435,10 +379,10 @@ export default function Navbar() {
                     </ul>
 
                     {/* Logout */}
-                    {user.loggedIn && (
+                    {isLoggedIn && (
                         <button
                             className="mobile-logout-btn"
-                            onClick={() => setMobileOpen(false)}
+                            onClick={handleAuthAction}
                         >
                             <i className="fas fa-sign-out-alt" style={{ width: 20, color: '#ef4444' }} />
                             Keluar dari Akun

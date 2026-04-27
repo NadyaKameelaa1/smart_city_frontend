@@ -23,7 +23,7 @@ class SsoProvider extends AbstractProvider
     protected function getUserByToken($token): array
     {
         $response = $this->getHttpClient()->get(
-            config('services.sso.base_url') . '/api/user',
+            config('services.sso.base_url') . '/oauth/userinfo',
             [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $token,
