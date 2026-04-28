@@ -993,29 +993,16 @@ const generateSlug = (name) => {
               <div className="kw-modal-divider" />
               <div className="kw-modal-section-label">Detail & Kontak</div>
 
+              <div className="kw-field">
+                  <label className="kw-label"><i className="fa-solid fa-phone" /> Kontak</label>
+                  <textarea className="kw-textarea" placeholder="Nomor telepon / WhatsApp..." value={form.kontak} onChange={(e) => handleFormChange("kontak", e.target.value)} rows={3} />
+                </div>
+
               <div className="kw-modal-divider" />
               <div className="kw-modal-section-label">Koordinat di Peta</div>
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: -8, marginBottom: 4 }}>
                 <i className="fa-solid fa-hand-pointer" style={{ color: "var(--teal-500)", marginRight: 6 }} />
                  Tentukan garis bujur (lng) dan garis lintang (lat) :
-              </div>
-
-              <div style={{ borderRadius: 12, overflow: 'hidden', height: 260, marginBottom:'-30px' }}>
-                <MapContainer
-                  center={[form.latitude || -7.3906, form.longitude || 109.3647]}
-                  zoom={13}
-                  style={{ height: '100%', width: '100%' }}
-                  scrollWheelZoom={false}
-                >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <LocationMarker
-                    position={[form.latitude, form.longitude]}
-                    onMove={(lat, lng) => {
-                      handleFormChange("latitude", lat);
-                      handleFormChange("longitude", lng);
-                    }}
-                  />
-                </MapContainer>
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
@@ -1057,10 +1044,6 @@ const generateSlug = (name) => {
                   <label className="kw-label"><i className="fa-solid fa-list-check" /> Fasilitas</label>
                   <textarea className="kw-textarea" placeholder="cth: Toilet, Parkir, Mushola..." value={form.fasilitas} onChange={(e) => handleFormChange("fasilitas", e.target.value)} rows={3} />
                 </div>
-                <div className="kw-field">
-                  <label className="kw-label"><i className="fa-solid fa-phone" /> Kontak</label>
-                  <textarea className="kw-textarea" placeholder="Nomor telepon / WhatsApp..." value={form.kontak} onChange={(e) => handleFormChange("kontak", e.target.value)} rows={3} />
-                </div>
               </div>
 
               <div className="kw-modal-divider" />
@@ -1085,6 +1068,7 @@ const generateSlug = (name) => {
                       <input
                         type="number"
                         className="kw-input"
+                        step="1000"
                         min="0"
                         value={price.harga_anak}
                         onChange={e => handlePriceChange(idx, 'harga_anak', e.target.value)}
@@ -1095,6 +1079,7 @@ const generateSlug = (name) => {
                       <input
                         type="number"
                         className="kw-input"
+                        step="1000"
                         min="0"
                         value={price.harga_dewasa}
                         onChange={e => handlePriceChange(idx, 'harga_dewasa', e.target.value)}

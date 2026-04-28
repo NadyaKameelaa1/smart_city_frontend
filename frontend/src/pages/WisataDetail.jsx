@@ -3,8 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import WisataCard from '../components/WisataCard';
-
-const DEV_USER_ID = '1e23d1b3-4e2e-4d6c-aba6-2d1889cfaccb';
+import { getStoredSsoSession, listenSsoSessionChange, rememberReturnTo } from '../lib/ssoSession';
 
 const formatRupiah = (n) => {
     if (n === undefined || n === null) return 'Hubungi Petugas';
@@ -17,6 +16,7 @@ const formatJam = (jam) => {
 };
 
 const BASE_IMAGE_URL = 'http://localhost:8000/storage/';
+const SSO_LOGIN_URL = 'http://localhost:8000/auth/sso/redirect';
 
 // ─── Rating Stars Component ──────────────────────────────────
 function StarInput({ value, onChange, readonly = false, size = 24 }) {
@@ -78,7 +78,6 @@ function RatingSection({ wisata }) {
         setLoading(true);
         try {
             const [statusRes, statsRes] = await Promise.all([
-                api.get(`/wisata/${wisata.id}/rating/status?dev_user_id=${DEV_USER_ID}`),
                 api.get(`/wisata/${wisata.id}/rating-stats`),
             ]);
             setStatusData(statusRes.data);
@@ -88,29 +87,6 @@ function RatingSection({ wisata }) {
             setRatingData({ per_bintang: {} });
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleSubmitRating = async () => {
-        if (myRating === 0 || submitting) return;
-        setSubmitting(true);
-        setSubmitError(null);
-        try {
-            await api.post(`/wisata/${wisata.id}/rating?dev_user_id=${DEV_USER_ID}`, { rating: myRating });
-            setMyRating(0);
-            const prevTotal = localTotal ?? wisata?.total_review ?? 0;
-            const prevAvg   = localAvg   ?? wisata?.rating       ?? 0;
-            const newTotal  = prevTotal + 1;
-            const newAvg    = ((prevAvg * prevTotal) + myRating) / newTotal;
-            setLocalAvg(parseFloat(newAvg.toFixed(1)));
-            setLocalTotal(newTotal);
-            await fetchData();
-        } catch (err) {
-            const msg = err.response?.data?.message || 'Gagal mengirim rating.';
-            setSubmitError(msg);
-            if (err.response?.status === 403) fetchData();
-        } finally {
-            setSubmitting(false);
         }
     };
 
@@ -174,7 +150,7 @@ function RatingSection({ wisata }) {
 }
 
 // ─── Ticket Card — shared antara sidebar desktop & inline mobile ─
-function TicketCard({ w }) {
+function TicketCard({ w, isLoggedIn, onLoginToBuyTicket }) {
     return (
         <div className="wd-ticket">
             <div className="wd-ticket__head">
@@ -201,9 +177,15 @@ function TicketCard({ w }) {
                     <div className="wd-ticket__price-val">Harga belum tersedia</div>
                 )}
             </div>
-            <Link to={`/tiket?id=${w.slug}`} className="wd-btn-primary">
-                <i className="fas fa-shopping-cart" /> Beli Tiket Sekarang
-            </Link>
+            {isLoggedIn ? (
+                <Link to={`/tiket?slug=${w.slug}`} className="wd-btn-primary">
+                    <i className="fas fa-shopping-cart" /> Beli Tiket Sekarang
+                </Link>
+            ) : (
+                <button type="button" onClick={onLoginToBuyTicket} className="wd-btn-primary">
+                    <i className="fas fa-right-to-bracket" /> Login untuk beli tiket
+                </button>
+            )}
             <Link
                 to={`/peta?nama=${encodeURIComponent(w.nama)}&lat=${w.marker?.lat ?? w.lat}&lng=${w.marker?.lng ?? w.lng}&open=1`}
                 className="wd-btn-ghost"
@@ -217,6 +199,7 @@ function TicketCard({ w }) {
 export default function WisataDetail() {
     const { slug }   = useParams();
     const navigate   = useNavigate();
+    const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getStoredSsoSession()?.token));
     const [imgIdx, setImgIdx] = useState(0);
     const [w, setWisata]   = useState(null);
     const [lainnya, setLainnya] = useState([]);
@@ -234,6 +217,15 @@ export default function WisataDetail() {
             .catch(err => console.error("Gagal load detail:", err));
         window.scrollTo(0, 0);
     }, [slug]);
+
+    useEffect(() => listenSsoSessionChange(() => {
+        setIsLoggedIn(Boolean(getStoredSsoSession()?.token));
+    }), []);
+
+    const handleLoginToBuyTicket = () => {
+        rememberReturnTo(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+        window.location.href = SSO_LOGIN_URL;
+    };
 
     if (!w) {
         return <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 90 }} />;
@@ -406,7 +398,11 @@ export default function WisataDetail() {
                                 <h2 className="wd-section-title">
                                     <i className="fas fa-ticket-alt" /> Tiket & Lokasi
                                 </h2>
-                                <TicketCard w={w} />
+                                <TicketCard
+                                    w={w}
+                                    isLoggedIn={isLoggedIn}
+                                    onLoginToBuyTicket={handleLoginToBuyTicket}
+                                />
                             </div>
 
                             {/* Wisata Lainnya */}
@@ -420,7 +416,11 @@ export default function WisataDetail() {
 
                         {/* ── Sidebar — hanya desktop (>1024px) ── */}
                         <div className="wd-sidebar">
-                            <TicketCard w={w} />
+                            <TicketCard
+                                w={w}
+                                isLoggedIn={isLoggedIn}
+                                onLoginToBuyTicket={handleLoginToBuyTicket}
+                            />
                         </div>
 
                     </div>

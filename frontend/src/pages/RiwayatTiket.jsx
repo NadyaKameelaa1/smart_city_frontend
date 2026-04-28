@@ -28,9 +28,12 @@ const FILTER_OPTIONS = [
     { value: 'Digunakan', label: 'Digunakan' },
 ];
 
-// ─── Responsive grid columns helper ──────────────────────────
 const RESPONSIVE_STYLE = `
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(.92) translateY(12px); }
+    to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
 
 .rt-card-grid {
     display: grid;
@@ -90,41 +93,40 @@ const RESPONSIVE_STYLE = `
     flex-wrap: wrap;
 }
 
-/* ≤ 900px: 2 kolom */
+/* Rating Modal overlay */
+.rating-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(3px);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.rating-modal-box {
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.22);
+    width: 100%;
+    max-width: 420px;
+    overflow: hidden;
+    animation: fadeInScale .3s cubic-bezier(.34,1.3,.64,1) both;
+}
+
 @media (max-width: 900px) {
-    .rt-card-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-    }
+    .rt-card-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
-
-/* ≤ 560px: 1 kolom */
 @media (max-width: 560px) {
-    .rt-card-grid {
-        grid-template-columns: 1fr;
-        gap: 14px;
-    }
-    .rt-stats-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-    }
-    .rt-detail-grid {
-        grid-template-columns: 1fr;
-    }
-    .rt-modal-actions {
-        flex-direction: column-reverse;
-    }
-    .rt-modal-actions > * {
-        width: 100%;
-        justify-content: center;
-    }
+    .rt-card-grid  { grid-template-columns: 1fr; gap: 14px; }
+    .rt-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .rt-detail-grid { grid-template-columns: 1fr; }
+    .rt-modal-actions { flex-direction: column-reverse; }
+    .rt-modal-actions > * { width: 100%; justify-content: center; }
 }
-
-/* stat card teks kecil di layar sempit */
 @media (max-width: 480px) {
-    .rt-stats-grid {
-        gap: 8px;
-    }
+    .rt-stats-grid { gap: 8px; }
     .rt-stat-value { font-size: 20px !important; }
     .rt-stat-label { font-size: 10px !important; }
     .rt-stat-icon  { width: 36px !important; height: 36px !important; }
@@ -132,7 +134,135 @@ const RESPONSIVE_STYLE = `
 `;
 
 // ─────────────────────────────────────────────────────────────
-// REVIEW TOAST
+// RATING MODAL  — popup di tengah layar
+// ─────────────────────────────────────────────────────────────
+function RatingModal({ order, onClose, onSubmitSuccess }) {
+    const [rating,    setRating]    = useState(0);
+    const [hovered,   setHovered]   = useState(0);
+    const [submitted, setSubmitted] = useState(false);
+    const [loading,   setLoading]   = useState(false);
+
+    const ratingLabels = ['', 'Sangat Buruk', 'Kurang Baik', 'Cukup', 'Baik', 'Sangat Baik!'];
+
+    const handleSubmit = async () => {
+        if (rating === 0 || loading) return;
+        setLoading(true);
+        try {
+            await api.post(`/dev/rating/${DEV_USER_ID}/${order.wisata_id}`, { rating });
+            setSubmitted(true);
+            setTimeout(() => {
+                onSubmitSuccess(order.wisata_id, rating);
+                onClose();
+            }, 1800);
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Gagal mengirim rating.';
+            alert(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="rating-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+            <div className="rating-modal-box">
+                {/* Header */}
+                <div style={{ background: 'linear-gradient(135deg, var(--teal-700), var(--teal-900))', padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <i className="fas fa-star" style={{ color: '#fbbf24', fontSize: 17 }} />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'white', lineHeight: 1.2 }}>Bagaimana kunjunganmu?</div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>Beri rating untuk {order.wisata?.nama}</div>
+                        </div>
+                    </div>
+                    <button onClick={onClose}
+                        style={{ background: 'rgba(255,255,255,.12)', border: 'none', color: 'rgba(255,255,255,.8)', cursor: 'pointer', width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.22)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
+                    ><i className="fas fa-times" /></button>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: '24px 26px 26px' }}>
+                    {!submitted ? (
+                        <>
+                            {/* Info wisata */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22, padding: '12px 14px', background: 'var(--cream)', borderRadius: 12 }}>
+                                {order.wisata?.thumbnail && (
+                                    <img src={getThumbUrl(order.wisata.thumbnail)} alt=""
+                                        style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+                                        onError={e => e.currentTarget.style.display = 'none'} />
+                                )}
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.wisata?.nama}</div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <i className="fas fa-calendar-check" style={{ color: 'var(--teal-500)' }} />
+                                        {formatTanggal(order.tanggal_kunjungan)}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace', letterSpacing: 1 }}>{order.kode_order}</div>
+                                </div>
+                            </div>
+
+                            {/* Bintang */}
+                            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>Ketuk bintang untuk memberi rating</div>
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 10 }}>
+                                    {[1,2,3,4,5].map((star) => {
+                                        const filled = star <= (hovered || rating);
+                                        return (
+                                            <button key={star}
+                                                onClick={() => setRating(star)}
+                                                onMouseEnter={() => setHovered(star)}
+                                                onMouseLeave={() => setHovered(0)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 3px', lineHeight: 1, transform: filled ? 'scale(1.2)' : 'scale(1)', transition: 'transform .12s' }}
+                                            >
+                                                <i className={filled ? 'fas fa-star' : 'far fa-star'}
+                                                    style={{ fontSize: 36, color: filled ? '#f59e0b' : '#d1d5db', transition: 'color .12s', filter: filled ? 'drop-shadow(0 2px 6px rgba(245,158,11,.4))' : 'none' }} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div style={{ fontSize: 14, fontWeight: 700, height: 20, color: rating > 0 ? '#f59e0b' : 'transparent', transition: 'color .2s' }}>
+                                    {ratingLabels[hovered || rating] || '\u200e'}
+                                </div>
+                            </div>
+
+                            {/* Tombol */}
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={onClose}
+                                    style={{ flex: 1, padding: '11px 0', borderRadius: 12, border: '1.5px solid var(--border)', background: 'white', fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    Batal
+                                </button>
+                                <button onClick={handleSubmit} disabled={rating === 0 || loading}
+                                    style={{ flex: 2, padding: '11px 0', borderRadius: 12, border: 'none', background: rating > 0 ? 'linear-gradient(135deg,var(--teal-600),var(--teal-700))' : '#e5e7eb', fontSize: 14, fontWeight: 700, color: rating > 0 ? 'white' : '#9ca3af', cursor: rating > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: 'inherit', transition: 'background .2s' }}>
+                                    {loading
+                                        ? <><i className="fas fa-spinner fa-spin" /> Mengirim...</>
+                                        : <><i className="fas fa-paper-plane" /> Kirim Ulasan</>}
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '12px 0 8px' }}>
+                            <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
+                            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--dark)', marginBottom: 6 }}>Terima kasih!</div>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>Ulasanmu membantu wisatawan lain menentukan pilihan terbaik.</div>
+                            <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                                {[1,2,3,4,5].map(s => (
+                                    <i key={s} className={s <= rating ? 'fas fa-star' : 'far fa-star'}
+                                        style={{ color: s <= rating ? '#f59e0b' : '#d1d5db', fontSize: 26 }} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
+// REVIEW TOAST  — muncul otomatis dari bawah kiri
 // ─────────────────────────────────────────────────────────────
 function ReviewToast({ order, onClose, onSubmitSuccess }) {
     const [rating,    setRating]    = useState(0);
@@ -190,9 +320,7 @@ function ReviewToast({ order, onClose, onSubmitSuccess }) {
                     <button onClick={doClose} style={{ background: 'rgba(255,255,255,.12)', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.22)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
-                    >
-                        <i className="fas fa-times" />
-                    </button>
+                    ><i className="fas fa-times" /></button>
                 </div>
                 <div style={{ padding: '16px 18px 18px' }}>
                     {!submitted ? (
@@ -225,7 +353,7 @@ function ReviewToast({ order, onClose, onSubmitSuccess }) {
                                     })}
                                 </div>
                                 <div style={{ fontSize: 13, fontWeight: 700, height: 18, color: rating > 0 ? '#f59e0b' : 'transparent', transition: 'color .2s' }}>
-                                    {ratingLabels[hovered || rating] || '‎'}
+                                    {ratingLabels[hovered || rating] || '\u200e'}
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: 8 }}>
@@ -258,7 +386,7 @@ function ReviewToast({ order, onClose, onSubmitSuccess }) {
 // E-TICKET MODAL
 // ─────────────────────────────────────────────────────────────
 export function ETicketModal({ order, onClose, onStatusChange }) {
-    const isUsed   = order.status_tiket === 'Digunakan';
+    const isUsed       = order.status_tiket === 'Digunakan';
     const tglFormatted = formatTanggal(order.tanggal_kunjungan);
     const qrCanvasRef  = useRef(null);
 
@@ -279,7 +407,7 @@ export function ETicketModal({ order, onClose, onStatusChange }) {
     }, [order.kode_order, order.status_tiket, isUsed]);
 
     const handleDownload = () => {
-        const canvas = qrCanvasRef.current?.querySelector('canvas');
+        const canvas    = qrCanvasRef.current?.querySelector('canvas');
         const qrDataUrl = canvas ? canvas.toDataURL('image/png') : null;
         const rows = [
             ['fa-mountain',    'Destinasi',         order.wisata?.nama || '-'],
@@ -397,10 +525,11 @@ ${rows.map(([ico, lbl, val]) => `<div class="info-row"><div class="info-icon"><i
 // ─────────────────────────────────────────────────────────────
 // DETAIL MODAL
 // ─────────────────────────────────────────────────────────────
-function DetailModal({ order, onClose, onShowETicket }) {
+function DetailModal({ order, onClose, onShowETicket, onOpenRating }) {
     if (!order) return null;
-    const st     = STATUS_TIKET[order.status_tiket] || STATUS_TIKET.Aktif;
-    const isUsed = order.status_tiket === 'Digunakan';
+    const st      = STATUS_TIKET[order.status_tiket] || STATUS_TIKET.Aktif;
+    const isUsed  = order.status_tiket === 'Digunakan';
+    const canRate = isUsed && !order.sudah_direview;
     const [showDisabledTip, setShowDisabledTip] = useState(false);
 
     return (
@@ -482,6 +611,17 @@ function DetailModal({ order, onClose, onShowETicket }) {
                             </div>
                         )}
                         <div className="rt-modal-actions">
+                            {/* Tombol Rating */}
+                            {canRate && (
+                                <button
+                                    onClick={() => { onClose(); onOpenRating(order); }}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 50, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: 'white', border: 'none', boxShadow: '0 2px 10px rgba(245,158,11,.35)' }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = '.88'}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                >
+                                    <i className="fas fa-star" /> Beri Rating
+                                </button>
+                            )}
                             <div style={{ position: 'relative' }}>
                                 <button
                                     onClick={() => { if (!isUsed) onShowETicket(order); }}
@@ -510,18 +650,20 @@ function DetailModal({ order, onClose, onShowETicket }) {
 // ─────────────────────────────────────────────────────────────
 // ORDER CARD
 // ─────────────────────────────────────────────────────────────
-function OrderCard({ order, onClick }) {
+function OrderCard({ order, onClick, onOpenRating }) {
     const st         = STATUS_TIKET[order.status_tiket] || STATUS_TIKET.Aktif;
     const totalOrang = (order.jumlah_anak || 0) + (order.jumlah_dewasa || 0);
     const isUsed     = order.status_tiket === 'Digunakan';
+    const canRate    = isUsed && !order.sudah_direview;
 
     return (
-        <div onClick={onClick}
+        <div
             style={{ background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden', transition: 'var(--transition)', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
         >
-            <div style={{ position: 'relative', height: 140, overflow: 'hidden', flexShrink: 0 }}>
+            {/* Thumbnail */}
+            <div onClick={onClick} style={{ position: 'relative', height: 140, overflow: 'hidden', flexShrink: 0 }}>
                 {order.wisata?.thumbnail ? (
                     <img src={getThumbUrl(order.wisata.thumbnail)} alt={order.wisata?.nama}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', filter: isUsed ? 'grayscale(35%)' : 'none' }}
@@ -547,7 +689,9 @@ function OrderCard({ order, onClick }) {
                     </div>
                 )}
             </div>
-            <div style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            {/* Info */}
+            <div onClick={onClick} style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: 4, lineHeight: 1.3 }}>{order.wisata?.nama || '—'}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', letterSpacing: 1 }}>{order.kode_order}</div>
@@ -567,6 +711,29 @@ function OrderCard({ order, onClick }) {
                     <div style={{ fontWeight: 900, fontSize: 16, color: 'var(--teal-700)' }}>{formatRupiah(order.total_harga)}</div>
                 </div>
             </div>
+
+            {/* ── Tombol Rating — hanya muncul jika Digunakan & belum direview ── */}
+            {canRate && (
+                <div style={{ padding: '0 16px 16px' }}>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onOpenRating(order); }}
+                        style={{
+                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            padding: '10px 0', borderRadius: 12, border: 'none',
+                            background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                            color: 'white', fontSize: 13, fontWeight: 700,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                            transition: 'opacity .15s, transform .15s',
+                            boxShadow: '0 3px 12px rgba(245,158,11,.35)',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '.88'; e.currentTarget.style.transform = 'scale(.98)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '1';   e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                        <i className="fas fa-star" style={{ fontSize: 12 }} />
+                        Beri Rating Wisata
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
@@ -583,6 +750,7 @@ export default function RiwayatTiket() {
     const [selected,     setSelected]     = useState(null);
     const [eTicketOrder, setETicketOrder] = useState(null);
     const [reviewToast,  setReviewToast]  = useState(null);
+    const [ratingOrder,  setRatingOrder]  = useState(null);   // ← RatingModal (popup tengah)
     const [reviewedWisataIds, setReviewedWisataIds] = useState(new Set());
 
     const handleStatusChange = (orderId, statusBaru) => {
@@ -590,7 +758,7 @@ export default function RiwayatTiket() {
         setETicketOrder(prev => prev && prev.id === orderId ? { ...prev, status_tiket: statusBaru } : prev);
     };
 
-    // Fetch tiket — tidak ada call ke /auth/me di halaman ini
+    // Fetch tiket
     useEffect(() => {
         const fetchOrders = async () => {
             setLoading(true);
@@ -610,9 +778,9 @@ export default function RiwayatTiket() {
         fetchOrders();
     }, []);
 
-    // Review toast otomatis
+    // Review toast otomatis — jangan tampil kalau RatingModal sudah terbuka
     useEffect(() => {
-        if (loading || reviewToast) return;
+        if (loading || reviewToast || ratingOrder) return;
         const reviewable = orders.find(o =>
             o.status_tiket === 'Digunakan' &&
             !o.sudah_direview &&
@@ -622,17 +790,24 @@ export default function RiwayatTiket() {
             const t = setTimeout(() => setReviewToast(reviewable), 1400);
             return () => clearTimeout(t);
         }
-    }, [loading, orders, reviewedWisataIds]);
+    }, [loading, orders, reviewedWisataIds, ratingOrder]);
 
     const handleRatingSuccess = (wisataId) => {
         setReviewedWisataIds(prev => new Set([...prev, wisataId]));
         setOrders(prev => prev.map(o => o.wisata_id === wisataId ? { ...o, sudah_direview: true } : o));
         setReviewToast(null);
+        setRatingOrder(null);
     };
 
     const handleReviewClose = () => {
         if (reviewToast) setReviewedWisataIds(prev => new Set([...prev, reviewToast.wisata_id]));
         setReviewToast(null);
+    };
+
+    // Buka RatingModal; tutup toast bila sedang tampil
+    const handleOpenRating = (order) => {
+        setReviewToast(null);
+        setRatingOrder(order);
     };
 
     const filtered = useMemo(() => {
@@ -748,7 +923,12 @@ export default function RiwayatTiket() {
                     ) : (
                         <div className="rt-card-grid">
                             {filtered.map(order => (
-                                <OrderCard key={order.id} order={order} onClick={() => setSelected(order)} />
+                                <OrderCard
+                                    key={order.id}
+                                    order={order}
+                                    onClick={() => setSelected(order)}
+                                    onOpenRating={handleOpenRating}
+                                />
                             ))}
                         </div>
                     )
@@ -768,12 +948,13 @@ export default function RiwayatTiket() {
                 </div>
             </div>
 
-            {/* Modals & Toasts */}
+            {/* ── Modals & Toasts ── */}
             {selected && (
                 <DetailModal
                     order={selected}
                     onClose={() => setSelected(null)}
                     onShowETicket={(order) => { setSelected(null); setETicketOrder(order); }}
+                    onOpenRating={handleOpenRating}
                 />
             )}
             {eTicketOrder && (
@@ -783,6 +964,15 @@ export default function RiwayatTiket() {
                     onStatusChange={handleStatusChange}
                 />
             )}
+            {/* RatingModal — popup di tengah layar */}
+            {ratingOrder && (
+                <RatingModal
+                    order={ratingOrder}
+                    onClose={() => setRatingOrder(null)}
+                    onSubmitSuccess={handleRatingSuccess}
+                />
+            )}
+            {/* ReviewToast — muncul otomatis dari bawah kiri */}
             {reviewToast && (
                 <ReviewToast
                     order={reviewToast}

@@ -95,7 +95,7 @@ export default function Navbar() {
     const handleAuthAction = async () => {
         if (!isLoggedIn) {
             rememberReturnTo(`${location.pathname}${location.search}${location.hash}`);
-            window.location.href = 'http://localhost:8000/auth/sso/redirect';
+            window.location.href = 'http://41.216.191.39:5174/auth/sso/redirect';
             return;
         }
 

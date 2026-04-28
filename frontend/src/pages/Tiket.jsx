@@ -45,7 +45,6 @@ const buildQrisPayload = ({ sessionId, wisata, qty, form, tanggal, total }) => J
     wisataId: wisata?.id,
     wisataName: wisata?.nama,
     merchantName: 'Purbalingga Smart City',
-    wisataName: wisata?.nama,
     saldo: total,
     nominal: total,
     description: `Pembayaran tiket ${wisata?.nama || 'wisata'} untuk ${form.nama}`,
