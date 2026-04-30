@@ -3,7 +3,7 @@ const LEGACY_TOKEN_KEY = 'auth_token';
 const USER_KEY = 'sso_user';
 const RETURN_TO_KEY = 'sso_return_to';
 const SESSION_EVENT = 'sso-session-changed';
-const SSO_BASE_URL = (import.meta.env.VITE_SSO_BASE_URL || 'http://41.216.191.39:5174').replace(/\/$/, '');
+const SSO_BASE_URL = (import.meta.env.VITE_SSO_BASE_URL || 'https://sso.qode.my.id').replace(/\/$/, '');
 const SSO_DASHBOARD_PATH = (import.meta.env.VITE_SSO_DASHBOARD_PATH || '/dashboard').startsWith('/')
   ? (import.meta.env.VITE_SSO_DASHBOARD_PATH || '/dashboard')
   : `/${import.meta.env.VITE_SSO_DASHBOARD_PATH || 'dashboard'}`;

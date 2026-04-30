@@ -5,7 +5,7 @@ const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_UR
 export default function Login() {
     const search = useMemo(() => new URLSearchParams(window.location.search), []);
     const error = search.get('error');
-    const ssoLoginUrl = useMemo(() => `${BACKEND_URL}/auth/sso/redirect`, []);
+    const ssoLoginUrl = useMemo(() => `https://apismartcity.qode.my.id/auth/sso/redirect`, []);
 
     useEffect(() => {
         if (error) {

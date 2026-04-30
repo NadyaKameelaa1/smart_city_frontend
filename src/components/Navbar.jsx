@@ -103,7 +103,7 @@ export default function Navbar() {
     const handleAuthAction = async () => {
         if (!isLoggedIn) {
             rememberReturnTo(`${location.pathname}${location.search}${location.hash}`);
-            window.location.href = `${BACKEND_URL}/auth/sso/redirect`;
+            window.location.href = `https://apismartcity.qode.my.id/auth/sso/redirect`;
             return;
         }
 
