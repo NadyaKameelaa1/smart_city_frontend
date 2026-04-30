@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "http://41.216.191.37:8000").replace(/\/$/, "");
+const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
+
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
@@ -70,27 +73,17 @@ const css = `
     overflow: hidden;
     flex-shrink: 0;
   }
-  .sa-brand-emblem {
-    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
-    background: linear-gradient(135deg, var(--teal-500), var(--teal-800));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 19px; color: white;
-    box-shadow: 0 4px 14px rgba(64,114,175,.35);
+  .sa-brand-logo {
+    height: 44px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
   }
   .sa-brand-text { overflow: hidden; }
-  .sa-brand-title {
-    font-family: var(--font-display);
-    font-size: 15px; font-weight: 700; color: white;
-    white-space: nowrap; line-height: 1;
-  }
-  .sa-brand-sub {
-    font-size: 10px; font-weight: 600; letter-spacing: 2px;
-    text-transform: uppercase; color: var(--teal-300); margin-top: 3px;
-    white-space: nowrap;
-  }
   .sa-brand-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    margin-top: 6px; padding: 2px 8px; border-radius: 50px;
+    margin-top: 0; padding: 2px 8px; border-radius: 50px;
     background: rgba(212,168,83,.15); border: 1px solid rgba(212,168,83,.3);
     font-size: 10px; font-weight: 700; color: var(--gold);
     letter-spacing: .5px; text-transform: uppercase;
@@ -319,12 +312,8 @@ export default function SuperAdminLayout({ children, user }) {
 
           {/* Brand */}
           <div className="sa-brand">
-            <div className="sa-brand-emblem">
-              <i className="fa-solid fa-city" />
-            </div>
+            <img src={LOGO_SRC} alt="Logo Smart City Purbalingga" className="sa-brand-logo" />
             <div className="sa-brand-text">
-              <div className="sa-brand-title">Purbalingga</div>
-              <div className="sa-brand-sub">Smart City</div>
               <div className="sa-brand-badge">
                 <i className="fa-solid fa-shield-halved" style={{ fontSize: 9 }} />
                 Super Admin

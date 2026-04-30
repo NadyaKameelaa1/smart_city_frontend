@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
+const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
+
 export default function AdminLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -305,22 +308,24 @@ export default function AdminLayout({ children }) {
         }
         .adm-hamburger:hover { background: var(--teal-100); color: var(--teal-900); }
 
-        .adm-brand { display: flex; align-items: center; gap: 10px; }
+        .adm-brand { display: flex; align-items: center; gap: 12px; }
         .adm-brand-text { text-align: right; }
         .adm-brand-row2 {
-          font-family: var(--font-display); font-size: 16px; font-weight: 700;
-          color: var(--dark); line-height: 1.1;
+          display: flex; justify-content: flex-end;
+        }
+        .adm-brand-logo {
+          height: 100px;
+          width: auto;
+          display: block;
+          object-fit: contain;
         }
         .adm-brand-row3 {
           font-size: 10.5px; color: var(--text-muted); margin-top: 1px;
           display: flex; align-items: center; gap: 5px; justify-content: flex-end;
-        }
-        .adm-brand-icon {
-          width: 36px; height: 36px; border-radius: 10px;
-          background: linear-gradient(135deg, var(--teal-500), var(--teal-800));
-          display: flex; align-items: center; justify-content: center;
-          color: white; font-size: 16px; flex-shrink: 0;
-          box-shadow: 0 2px 8px rgba(64,114,175,.25);
+          background-color:#ffffff;
+          padding:5px;
+          marin:5px;
+          border-radius:5px;
         }
 
         /* ══════ MAIN CONTENT ══════ */
@@ -338,7 +343,7 @@ export default function AdminLayout({ children }) {
         @media (min-width: 769px) and (max-width: 1024px) {
           :root { --sidebar-w: 220px; }
           .adm-content { padding: 24px 20px; }
-          .adm-brand-row2 { font-size: 14px; }
+          .adm-brand-logo { height: 100px; }
           .adm-brand-row3 { display: none; }
         }
 
@@ -367,7 +372,7 @@ export default function AdminLayout({ children }) {
           .adm-main { margin-left: 0 !important; }
 
           .adm-content { padding: 20px 16px; }
-          .adm-brand-row2 { font-size: 13px; }
+          .adm-brand-logo { height: 100px; }
           .adm-brand-row3 { display: none; }
 
           /* Profile: selalu tampil (tidak collapsed di mobile) */
@@ -493,14 +498,13 @@ export default function AdminLayout({ children }) {
           <div className="adm-topbar-right">
             <div className="adm-brand">
               <div className="adm-brand-text">
-                <div className="adm-brand-row2">Purbalingga Smart City</div>
+                <div className="adm-brand-row2">
+                  <img src={LOGO_SRC} alt="Logo Smart City Purbalingga" className="adm-brand-logo" />
+                </div>
                 <div className="adm-brand-row3">
                   <i className="fa-regular fa-clock" style={{ fontSize: 10 }} />
                   {formattedDate} &nbsp;·&nbsp; {formattedTime} WIB
                 </div>
-              </div>
-              <div className="adm-brand-icon">
-                <i className="fa-solid fa-city" />
               </div>
             </div>
           </div>

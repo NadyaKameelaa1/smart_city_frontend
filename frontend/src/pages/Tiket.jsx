@@ -1,6 +1,6 @@
 // src/pages/Tiket.jsx
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useParams, Link } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '../api/axios';
 
@@ -1108,8 +1108,9 @@ function Step4({ wisata, qty, form, tanggal }) {
 
 // ─── Main Tiket Page ──────────────────────────────────────────
 export default function Tiket() {
+    const { slug: slugFromPath } = useParams();
     const [searchParams] = useSearchParams();
-    const wisataId = searchParams.get('id');
+    const wisataSlug = slugFromPath || searchParams.get('slug') || searchParams.get('id');
 
     const [wisata,      setWisata]      = useState(null);
     const [userProfile, setUserProfile] = useState(null);
@@ -1122,15 +1123,29 @@ export default function Tiket() {
     const [form,    setForm]    = useState({});
 
     useEffect(() => {
-        if (!wisataId) { setNotFound(true); setLoading(false); return; }
+        if (!wisataSlug) {
+            setWisata(null);
+            setNotFound(true);
+            setLoading(false);
+            return;
+        }
 
         const fetchData = async () => {
             setLoading(true);
+            setNotFound(false);
             try {
-                // Fetch wisata dulu — wajib ada
-                const wisataRes = await api.get(`/wisata/${wisataId}`);
-                setWisata(wisataRes.data?.data || null);
+                // Detail wisata by slug (kompatibel juga jika legacy value masih di query id)
+                const wisataRes = await api.get(`/wisata/${encodeURIComponent(wisataSlug)}`);
+                const wisataData = wisataRes.data?.data || null;
+                setWisata(wisataData);
+
+                if (!wisataData) {
+                    setNotFound(true);
+                    setLoading(false);
+                    return;
+                }
             } catch {
+                setWisata(null);
                 setNotFound(true);
                 setLoading(false);
                 return;
@@ -1149,7 +1164,7 @@ export default function Tiket() {
         };
 
         fetchData();
-    }, [wisataId]);
+    }, [wisataSlug]);
 
     if (loading) {
         return (

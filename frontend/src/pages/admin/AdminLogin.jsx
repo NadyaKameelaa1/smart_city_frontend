@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
+const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "http://41.216.191.37:8000").replace(/\/$/, "");
+const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
+
 export default function AdminLogin() {
   const currentYear = new Date().getFullYear();
   const [form, setForm] = useState({ username: "", password: "" });
@@ -80,23 +83,11 @@ export default function AdminLogin() {
         }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "40px" }}>
-              <div style={{
-                width: "44px", height: "44px",
-                background: "linear-gradient(135deg, #4a90d9, #2563eb)",
-                borderRadius: "12px",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 4px 14px rgba(37,99,235,0.4)",
-              }}>
-                <i className="fa-solid fa-city" style={{ color: "white", fontSize: "20px" }} />
-              </div>
-              <div>
-                <div style={{ color: "white", fontWeight: 700, fontSize: "16px", fontFamily: "'Libre Baskerville', serif" }}>
-                  Purbalingga
-                </div>
-                <div style={{ color: "#93bbf5", fontSize: "10px", fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>
-                  Smart City
-                </div>
-              </div>
+              <img
+                src={LOGO_SRC}
+                alt="Logo Smart City Purbalingga"
+                style={{ width: "64px", height: "64px", objectFit: "contain", display: "block" }}
+              />
             </div>
 
             <h2 style={{ color: "white", fontSize: "26px", fontWeight: 700, marginBottom: "12px", lineHeight: 1.3, fontFamily: "'Libre Baskerville', serif" }}>

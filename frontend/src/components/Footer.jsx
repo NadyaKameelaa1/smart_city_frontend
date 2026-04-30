@@ -1,6 +1,9 @@
 // src/components/Footer.jsx
 import { Link } from 'react-router-dom';
 
+const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'http://41.216.191.37:8000').replace(/\/$/, '');
+const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
+
 const footerLinks = {
     layanan: [
         { label: 'LPSE',             href: 'https://lpse.purbalinggakab.go.id' },
@@ -59,21 +62,14 @@ export default function Footer() {
                 .footer-logo {
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    gap: 0;
                     margin-bottom: 14px;
                 }
-                .footer-logo-emblem {
-                    width: 38px; height: 38px;
-                    border-radius: 10px;
-                    background: linear-gradient(135deg, var(--teal-500, #4f83bf), var(--teal-800, #284d83));
-                    display: flex; align-items: center; justify-content: center;
-                    color: white; font-size: 17px;
-                    flex-shrink: 0;
-                }
-                .footer-logo-title {
-                    font-family: var(--font-display, 'Playfair Display', Georgia, serif);
-                    font-size: 20px; font-weight: 700;
-                    color: white;
+                .footer-logo-image {
+                    height: 120px;
+                    width: auto;
+                    display: block;
+                    object-fit: contain;
                 }
                 .footer-brand-desc {
                     font-size: 13px;
@@ -184,7 +180,7 @@ export default function Footer() {
                         gap: 28px 32px;
                         padding-bottom: 36px;
                     }
-                    .footer-logo-title { font-size: 18px; }
+                    .footer-logo-image { height: 115px; }
                     .footer-brand-desc { font-size: 12.5px; }
                     .footer-col-title  { font-size: 10.5px; margin-bottom: 14px; }
                     .footer-links li a,
@@ -202,8 +198,7 @@ export default function Footer() {
                     }
 
                     /* Brand lebih kecil */
-                    .footer-logo-emblem { width: 32px; height: 32px; font-size: 14px; }
-                    .footer-logo-title  { font-size: 16px; }
+                    .footer-logo-image { height: 100px; }
                     .footer-brand-desc  { font-size: 12px; line-height: 1.65; margin-bottom: 14px; }
 
                     /* Social icons lebih kecil */
@@ -237,7 +232,7 @@ export default function Footer() {
                 @media (max-width: 380px) {
                     .footer { padding-top: 24px; }
                     .footer-grid { gap: 20px; padding-bottom: 22px; }
-                    .footer-logo-title  { font-size: 15px; }
+                    .footer-logo-image  { height: 95px; }
                     .footer-brand-desc  { font-size: 11.5px; }
                     .footer-links li a,
                     .footer-contact-item { font-size: 11.5px; }
@@ -252,10 +247,7 @@ export default function Footer() {
                         {/* Brand */}
                         <div>
                             <div className="footer-logo">
-                                <div className="footer-logo-emblem">
-                                    <i className="fas fa-city" />
-                                </div>
-                                <span className="footer-logo-title">Purbalingga</span>
+                                <img src={LOGO_SRC} alt="Logo Smart City Purbalingga" className="footer-logo-image" />
                             </div>
                             <p className="footer-brand-desc">
                                 Portal resmi informasi publik Kabupaten Purbalingga. Melayani masyarakat dengan informasi yang akurat, transparan, dan mudah diakses.
