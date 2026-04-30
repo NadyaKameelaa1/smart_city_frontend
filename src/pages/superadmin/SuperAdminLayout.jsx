@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "https://apismartcity.qode.my.id").replace(/\/$/, "");
-const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
+const LOGO_SRC = `https://apismartcity.qode.my.id/storage/logo/logo_smartcity.png`;
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap');
