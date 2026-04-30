@@ -2,7 +2,7 @@
 import { Link } from 'react-router-dom';
 
 const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
-const LOGO_SRC = `https://apismartcity.qode.my.id/storage/logo/logo_smartcity.png`;
+const LOGO_SRC = `/img/logo/logo_smartcity.png`;
 
 const footerLinks = {
     layanan: [
