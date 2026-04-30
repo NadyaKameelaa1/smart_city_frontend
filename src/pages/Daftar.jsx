@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 // ─── Base URL API — sesuaikan dengan URL Laravel kamu ────────
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://41.216.191.37:8000/api';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://apismartcity.qode.my.id/api';
 const currentYear = new Date().getFullYear();
 
 // ── CSS ───────────────────────────────────────────────────────

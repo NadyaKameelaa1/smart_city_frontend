@@ -712,7 +712,7 @@ export default function KelolaWisata() {
   const cleanPath = path.replace(/^\/?wisata\//, "").replace(/^\//, "");
 
   // 4. Gabungkan dengan URL storage Laravel kamu
-  const baseUrl = "http://41.216.191.37:8000/storage/wisata"; // Sesuaikan folder simpanmu
+  const baseUrl = "https://apismartcity.qode.my.id/storage/wisata"; // Sesuaikan folder simpanmu
   return `${baseUrl}/${cleanPath}`;
 };
 

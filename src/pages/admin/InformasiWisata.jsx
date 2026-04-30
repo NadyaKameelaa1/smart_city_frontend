@@ -149,7 +149,7 @@ const css = `
 `;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://41.216.191.37:8000').replace(/\/$/, '');
+const BASE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
 
 const rupiah = (n) => {
   if (!n || Number(n) === 0) return 'Gratis';

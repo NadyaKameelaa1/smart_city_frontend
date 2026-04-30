@@ -186,7 +186,7 @@ function normalizeEvent(e) {
     const gambar = e.thumbnail
         ? e.thumbnail.startsWith('http')
             ? e.thumbnail
-            : `${import.meta.env.VITE_APP_URL ?? 'http://41.216.191.37:8000'}/storage/event/${e.thumbnail}`
+            : `${import.meta.env.VITE_APP_URL ?? 'https://apismartcity.qode.my.id'}/storage/event/${e.thumbnail}`
         : 'https://placehold.co/640x480?text=No+Image';
 
     return {

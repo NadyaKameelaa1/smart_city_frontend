@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
-const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "http://41.216.191.37:8000").replace(/\/$/, "");
+const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "https://apismartcity.qode.my.id").replace(/\/$/, "");
 const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
 
 export default function AdminLogin() {

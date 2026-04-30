@@ -339,7 +339,7 @@ export default function Berita() {
     const [page, setPage] = useState(1);
 
     const PER_PAGE = 9;
-    const BASE_IMAGE_URL = 'http://41.216.191.37:8000/storage/';
+    const BASE_IMAGE_URL = 'https://apismartcity.qode.my.id/storage/';
 
     useEffect(() => {
         setLoading(true);

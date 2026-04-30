@@ -5,7 +5,7 @@ import api from '../api/axios';
 
 const DEV_USER_ID = '1e23d1b3-4e2e-4d6c-aba6-2d1889cfaccb';
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://41.216.191.37:8000').replace(/\/$/, '');
+const BASE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
 
 const getThumbUrl = (thumbnail) => {
     if (!thumbnail) return null;

@@ -10,7 +10,7 @@ const formatTanggal = (str) => {
     });
 };
 
-const BASE_IMAGE_URL = import.meta.env.VITE_STORAGE_URL || 'http://41.216.191.37:8000/storage/';
+const BASE_IMAGE_URL = import.meta.env.VITE_STORAGE_URL || 'https://apismartcity.qode.my.id/storage/';
 
 export default function BeritaDetail() {
     const { slug } = useParams();

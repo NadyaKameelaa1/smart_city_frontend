@@ -3,7 +3,7 @@ import axios from 'axios';
 const currentHost = window.location.hostname;
 
 const api = axios.create({
-    baseURL: `http://41.216.191.37:8000/api`,
+    baseURL: `https://apismartcity.qode.my.id/api`,
     headers: {
         'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'application/json',

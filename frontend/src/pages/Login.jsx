@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'http://41.216.191.37:8000').replace(/\/$/, '');
+const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
 
 export default function Login() {
     const search = useMemo(() => new URLSearchParams(window.location.search), []);
