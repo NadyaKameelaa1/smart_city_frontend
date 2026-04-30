@@ -12,7 +12,7 @@ import {
 } from '../lib/ssoSession';
 
 const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
-const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
+const LOGO_SRC = `https://apismartcity.qode.my.id//storage/logo/logo_smartcity.png`;
 
 const navLinks = [
     { label: 'Beranda',    href: '/#home',       icon: 'fa-home' },
