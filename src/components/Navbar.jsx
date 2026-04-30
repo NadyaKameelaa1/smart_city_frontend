@@ -12,6 +12,7 @@ import {
 } from '../lib/ssoSession';
 
 const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
+const LOGO_SRC = `${BACKEND_URL}/storage/logo/logo_smartcity.png`;
 
 const navLinks = [
     { label: 'Beranda',    href: '/#home',       icon: 'fa-home' },
@@ -153,11 +154,21 @@ export default function Navbar() {
                 }
                 .btn-profile:hover { background: rgba(64,114,175,.16); transform: translateY(-1px); }
 
-                /* ── Hamburger animation ── */
-                .hamburger { background: none; border: none; }
-                .hamburger.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-                .hamburger.is-open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
-                .hamburger.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+                /* ── Hamburger (samakan dengan admin) ── */
+                .hamburger {
+                    display: none;
+                    align-items: center; justify-content: center;
+                    width: 40px; height: 40px;
+                    border-radius: var(--radius-sm);
+                    background: var(--teal-50); border: 1px solid var(--border);
+                    color: var(--teal-700); font-size: 16px;
+                    cursor: pointer; transition: var(--transition);
+                    flex-shrink: 0; padding: 0;
+                }
+                .hamburger:hover { background: var(--teal-100); color: var(--teal-900); }
+                @media (max-width: 1024px) {
+                    .hamburger { display: flex; }
+                }
 
                 /* ── Mobile menu panel ── */
                 .mobile-menu-panel {
@@ -232,13 +243,11 @@ export default function Navbar() {
                     <div className="navbar-inner">
                         {/* Logo */}
                         <Link to="/#home" className="navbar-logo" onClick={(e) => handleAnchorClick(e, '/#home')}>
-                            <div className="logo-emblem">
-                                <i className="fas fa-city" />
-                            </div>
-                            <div className="logo-text-group">
-                                <span className="logo-title">Purbalingga</span>
-                                <span className="logo-subtitle">Smart City</span>
-                            </div>
+                            <img
+                                src={LOGO_SRC}
+                                alt="Logo Smart City Purbalingga"
+                                className="logo-image"
+                            />
                         </Link>
 
                         {/* Desktop Menu */}
@@ -302,12 +311,12 @@ export default function Navbar() {
 
                             {/* Hamburger */}
                             <button
-                                className={`hamburger${mobileOpen ? ' is-open' : ''}`}
+                                className="hamburger"
                                 onClick={() => setMobileOpen((v) => !v)}
                                 aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'}
                                 aria-expanded={mobileOpen}
                             >
-                                <span /><span /><span />
+                                <i className="fa-solid fa-bars" />
                             </button>
                         </div>
                     </div>
