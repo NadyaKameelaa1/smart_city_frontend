@@ -29,9 +29,9 @@ const footerLinks = {
 
 const socials = [
     { icon: 'fa-facebook-f',  href: '#', label: 'Facebook' },
-    { icon: 'fa-instagram',   href: '#', label: 'Instagram' },
+    { icon: 'fa-instagram',   href: 'https://www.instagram.com/pemkab_purbalingga', label: 'Instagram' },
     { icon: 'fa-twitter',     href: '#', label: 'Twitter' },
-    { icon: 'fa-youtube',     href: '#', label: 'YouTube' },
+    { icon: 'fa-youtube',     href: 'https://www.youtube.com/@pemkab_purbalingga', label: 'YouTube' },
     { icon: 'fa-tiktok',      href: '#', label: 'TikTok' },
 ];
 
@@ -66,7 +66,7 @@ export default function Footer() {
                     margin-bottom: 14px;
                 }
                 .footer-logo-image {
-                    height: 120px;
+                    height: 200px;
                     width: auto;
                     display: block;
                     object-fit: contain;
@@ -75,6 +75,7 @@ export default function Footer() {
                     font-size: 13px;
                     line-height: 1.75;
                     color: rgba(255,255,255,.55);
+                    margin-top: -50px;
                     margin-bottom: 20px;
                 }
 
@@ -180,7 +181,7 @@ export default function Footer() {
                         gap: 28px 32px;
                         padding-bottom: 36px;
                     }
-                    .footer-logo-image { height: 115px; }
+                    .footer-logo-image { height: 150px; }
                     .footer-brand-desc { font-size: 12.5px; }
                     .footer-col-title  { font-size: 10.5px; margin-bottom: 14px; }
                     .footer-links li a,
@@ -198,7 +199,7 @@ export default function Footer() {
                     }
 
                     /* Brand lebih kecil */
-                    .footer-logo-image { height: 100px; }
+                    .footer-logo-image { height: 140px; }
                     .footer-brand-desc  { font-size: 12px; line-height: 1.65; margin-bottom: 14px; }
 
                     /* Social icons lebih kecil */
@@ -232,7 +233,7 @@ export default function Footer() {
                 @media (max-width: 380px) {
                     .footer { padding-top: 24px; }
                     .footer-grid { gap: 20px; padding-bottom: 22px; }
-                    .footer-logo-image  { height: 95px; }
+                    .footer-logo-image  { height: 140px; }
                     .footer-brand-desc  { font-size: 11.5px; }
                     .footer-links li a,
                     .footer-contact-item { font-size: 11.5px; }
@@ -247,7 +248,7 @@ export default function Footer() {
                         {/* Brand */}
                         <div>
                             <div className="footer-logo">
-                                <img src={LOGO_SRC} alt="Logo Smart City Purbalingga" className="footer-logo-image" />
+                                <img src={'/img/logo/logo_smartcity_putih.png'} alt="Logo Smart City Purbalingga" className="footer-logo-image" />
                             </div>
                             <p className="footer-brand-desc">
                                 Portal resmi informasi publik Kabupaten Purbalingga. Melayani masyarakat dengan informasi yang akurat, transparan, dan mudah diakses.

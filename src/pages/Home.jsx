@@ -1,11 +1,12 @@
 // src/pages/Home.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import WisataCard from '../components/WisataCard';
 import SmartSearchBar from '../components/SmartSearchBar';
 import PengumumanCard from '../components/PengumumanCard';
 import PelayananCard from '../components/PelayananCard';
 import EventCard from '../components/EventCard';
+import LoadingScreen from '../components/LoadingScreen';
 import {
     wisataData,
     beritaData,
@@ -53,8 +54,6 @@ function FadeIn({ children, className = '' }) {
     const ref = useFadeIn();
     return <div ref={ref} className={`fade-in-up ${className}`}>{children}</div>;
 }
-
-// src/pages/Home.jsx — ganti fungsi HeroSection dengan ini
 
 function HeroSection() {
     const navigate  = useNavigate();
@@ -130,8 +129,6 @@ function HeroSection() {
                     gap: 32px;
                 }
                 .hero-titles-wrap { display: flex; flex-direction: column; gap: 10px; }
-
-                /* CTA — selalu horizontal, selalu tengah */
                 .hero-actions {
                     display: flex;
                     gap: 16px;
@@ -183,7 +180,6 @@ function HeroSection() {
                     .hero-title  { font-size: clamp(32px, 9vw, 52px); letter-spacing: .5px; }
                     .title-city  { font-size: clamp(14px, 4.5vw, 22px); letter-spacing: 1.5px; }
                     .title-line  { max-width: 60px; }
-                    /* Tombol tetap horizontal dan tengah, ukuran tidak berubah */
                     .hero-actions {
                         gap: 12px;
                         margin-top: 4px;
@@ -235,10 +231,8 @@ function HeroSection() {
                             </div>
                         </div>
 
-                            {/* Search bar + pills icon kategori */}
                             <SmartSearchBar />
 
-                            {/* CTA — selalu tengah, selalu horizontal, ukuran dipertahankan */}
                             <div className="hero-actions">
                                 <a href="#profil" className="hero-cta-primary">
                                     <i className="fas fa-compass" /> Jelajahi Purbalingga
@@ -301,8 +295,6 @@ function ProfilSection() {
     );
 }
 
-// Ganti fungsi TabTentang dengan ini
-
 function TabTentang() {
     const facts = [
         { label: 'Ibu Kota',         value: 'Kota Purbalingga',     icon: 'fa-map-marker-alt' },
@@ -316,7 +308,6 @@ function TabTentang() {
     return (
         <>
             <style>{`
-                /* ─── Content wrapper: 2 kolom di desktop ─── */
                 .tentang-content-wrapper {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -325,8 +316,6 @@ function TabTentang() {
                     z-index: 2;
                     padding: 48px;
                 }
-
-                /* ─── Teks kiri ─── */
                 .tentang-left h2 {
                     font-family: var(--font-display, 'Playfair Display', Georgia, serif);
                     font-size: 32px;
@@ -354,8 +343,6 @@ function TabTentang() {
                     letter-spacing: 1px;
                     text-transform: uppercase;
                 }
-
-                /* ─── Facts grid: 2 kolom ─── */
                 .tentang-facts-grid {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -381,8 +368,6 @@ function TabTentang() {
                     color: white;
                     line-height: 1.3;
                 }
-
-                /* ─── Quote bawah ─── */
                 .tentang-description {
                     font-size: 13px;
                     color: rgba(255,255,255,.6);
@@ -393,48 +378,25 @@ function TabTentang() {
                     background: rgba(255,255,255,.04);
                     border-radius: 0 8px 8px 0;
                 }
-
-                /* ════════ TABLET (≤ 1024px): stack vertikal ════════ */
                 @media (max-width: 1024px) {
-                    .tentang-content-wrapper {
-                        grid-template-columns: 1fr;
-                        gap: 28px;
-                        padding: 36px;
-                    }
+                    .tentang-content-wrapper { grid-template-columns: 1fr; gap: 28px; padding: 36px; }
                     .tentang-left h2   { font-size: 26px; }
                     .tentang-left p    { font-size: 13.5px; }
                 }
-
-                /* ════════ MOBILE (≤ 640px) ════════ */
                 @media (max-width: 640px) {
-                    .tentang-content-wrapper {
-                        grid-template-columns: 1fr;
-                        gap: 20px;
-                        padding: 20px 16px;
-                    }
+                    .tentang-content-wrapper { grid-template-columns: 1fr; gap: 20px; padding: 20px 16px; }
                     .tentang-badge     { font-size: 10px; padding: 4px 11px; }
                     .tentang-left h2   { font-size: 22px; margin: 8px 0 12px; }
                     .tentang-left p    { font-size: 13px; line-height: 1.7; margin-bottom: 8px; }
-
-                    /* Facts: tetap 2 kolom tapi lebih compact */
-                    .tentang-facts-grid {
-                        grid-template-columns: 1fr 1fr;
-                        gap: 8px;
-                        margin-bottom: 14px;
-                    }
+                    .tentang-facts-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
                     .tentang-fact-item  { padding: 10px 11px; border-radius: 8px; }
                     .tentang-fact-label { font-size: 10px; margin-bottom: 3px; }
                     .tentang-fact-value { font-size: 12.5px; }
-
-                    /* Header fakta singkat */
                     .tentang-fakta-head { gap: 8px !important; margin-bottom: 14px !important; }
                     .tentang-fakta-head > div { width: 32px !important; height: 32px !important; border-radius: 8px !important; }
                     .tentang-fakta-head h3  { font-size: 16px !important; }
-
                     .tentang-description { font-size: 12px; padding: 11px 13px; }
                 }
-
-                /* ════════ SMALL MOBILE (≤ 380px) ════════ */
                 @media (max-width: 380px) {
                     .tentang-content-wrapper { padding: 16px 12px; gap: 16px; }
                     .tentang-left h2   { font-size: 20px; }
@@ -451,8 +413,6 @@ function TabTentang() {
                     <div className="tentang-hero-gradient" />
                     <div className="tentang-hero-pattern" />
                     <div className="tentang-content-wrapper">
-
-                        {/* Kiri — deskripsi */}
                         <div className="tentang-left">
                             <div className="tentang-badge">
                                 <i className="fas fa-info-circle" /> Tentang Kabupaten Purbalingga
@@ -462,8 +422,6 @@ function TabTentang() {
                             <p>Purbalingga dikenal dengan berbagai produk unggulan seperti bulu mata palsu, knalpot, dan rambut palsu yang dipasarkan ke mancanegara.</p>
                             <p>Kota ini berkembang pesat dengan berbagai infrastruktur modern, termasuk Bandara Jenderal Besar Soedirman.</p>
                         </div>
-
-                        {/* Kanan — fakta singkat */}
                         <div className="tentang-right">
                             <div className="tentang-fakta-head" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
                                 <div style={{ width: 40, height: 40, background: 'var(--teal-500)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -486,7 +444,6 @@ function TabTentang() {
                                 Purbalingga terus berkembang menjadi kota smart city dengan tetap mempertahankan kearifan lokal dan budaya Banyumasan.
                             </div>
                         </div>
-
                     </div>
                 </div>
             </FadeIn>
@@ -507,7 +464,6 @@ function TabSejarah() {
 
     return (
         <FadeIn>
-            {/* Timeline — tanpa item "Kini" */}
             <div className="sejarah-timeline">
                 {items.map((item, i) => (
                     <div className="timeline-item" key={i}>
@@ -536,57 +492,26 @@ function TabSejarah() {
                 ))}
             </div>
 
-            {/* Titik penutup timeline */}
             <div style={{ display: 'flex', justifyContent: 'center', margin: '-12px 0 28px', position: 'relative', zIndex: 2 }}>
-                <div style={{
-                    width: 24, height: 24, background: 'var(--teal-600)',
-                    borderRadius: '50%', border: '4px solid white',
-                    boxShadow: '0 0 0 4px var(--teal-200)',
-                }} />
+                <div style={{ width: 24, height: 24, background: 'var(--teal-600)', borderRadius: '50%', border: '4px solid white', boxShadow: '0 0 0 4px var(--teal-200)' }} />
             </div>
 
-            {/* Closing banner "Kini" */}
-            <div style={{
-                background: 'var(--teal-950)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '32px 36px',
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                gap: 32,
-                alignItems: 'center',
-            }}>
+            <div style={{ background: 'var(--teal-950)', borderRadius: 'var(--radius-lg)', padding: '32px 36px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'center' }}>
                 <div>
                     <div style={{ fontSize: 11, letterSpacing: 2, color: 'var(--teal-300)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 6, height: 6, background: 'var(--teal-400)', borderRadius: '50%' }} />
                         Kini · Kota Smart &amp; Berbudaya
                     </div>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'white', marginBottom: 10 }}>
-                        Purbalingga Hari Ini
-                    </h3>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'white', marginBottom: 10 }}>Purbalingga Hari Ini</h3>
                     <p style={{ fontSize: 14, color: 'rgba(255,255,255,.7)', lineHeight: 1.7, maxWidth: 460 }}>
                         Purbalingga terus bertransformasi menjadi kota modern berbasis smart city, dengan tetap mempertahankan kearifan lokal dan budaya Banyumasan yang kaya.
                     </p>
                 </div>
-
-                {/* Stats ringkas */}
                 <div style={{ display: 'flex', gap: 16, flexShrink: 0 }}>
-                    {[
-                        { num: '18',   label: 'Kecamatan' },
-                        { num: '239',  label: 'Desa' },
-                        { num: '920rb', label: 'Penduduk' },
-                    ].map((s) => (
-                        <div key={s.label} style={{
-                            textAlign: 'center', padding: '14px 18px',
-                            background: 'rgba(255,255,255,.07)',
-                            border: '1px solid rgba(255,255,255,.1)',
-                            borderRadius: 12,
-                        }}>
-                            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--teal-300)', lineHeight: 1 }}>
-                                {s.num}
-                            </div>
-                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 }}>
-                                {s.label}
-                            </div>
+                    {[{ num: '18', label: 'Kecamatan' }, { num: '239', label: 'Desa' }, { num: '920rb', label: 'Penduduk' }].map((s) => (
+                        <div key={s.label} style={{ textAlign: 'center', padding: '14px 18px', background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12 }}>
+                            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--teal-300)', lineHeight: 1 }}>{s.num}</div>
+                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 }}>{s.label}</div>
                         </div>
                     ))}
                 </div>
@@ -633,92 +558,26 @@ function TabPejabat() {
     return (
         <>
             <style>{`
-                /* ─── Grid: 2 kolom sejajar ─── */
-                .pejabat-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 24px;
-                }
-
-                .pejabat-card {
-                    background: white;
-                    border-radius: var(--radius-lg, 24px);
-                    overflow: hidden;
-                    border: 1px solid var(--border, #dae2ef);
-                    box-shadow: var(--shadow-md, 0 8px 32px rgba(64,114,175,.12));
-                    transition: transform .2s, box-shadow .2s;
-                }
-                .pejabat-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: var(--shadow-lg, 0 20px 60px rgba(64,114,175,.16));
-                }
-
-                .pejabat-photo {
-                    width: 100%;
-                    aspect-ratio: 3/4;
-                    overflow: hidden;
-                    background: var(--teal-50, #eef3fa);
-                }
-                .pejabat-photo img {
-                    width: 100%; height: 100%;
-                    object-fit: cover;
-                    display: block;
-                    transition: transform .4s;
-                }
+                .pejabat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+                .pejabat-card { background: white; border-radius: var(--radius-lg, 24px); overflow: hidden; border: 1px solid var(--border, #dae2ef); box-shadow: var(--shadow-md, 0 8px 32px rgba(64,114,175,.12)); transition: transform .2s, box-shadow .2s; }
+                .pejabat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg, 0 20px 60px rgba(64,114,175,.16)); }
+                .pejabat-photo { width: 100%; aspect-ratio: 3/4; overflow: hidden; background: var(--teal-50, #eef3fa); }
+                .pejabat-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s; }
                 .pejabat-card:hover .pejabat-photo img { transform: scale(1.04); }
-
-                .pejabat-info {
-                    padding: 20px;
-                }
-                .pejabat-jabatan {
-                    font-size: 11px;
-                    font-weight: 700;
-                    letter-spacing: 1.5px;
-                    text-transform: uppercase;
-                    color: var(--teal-600, #4072af);
-                    margin-bottom: 6px;
-                }
-                .pejabat-name {
-                    font-family: var(--font-display, 'Playfair Display', Georgia, serif);
-                    font-size: 20px;
-                    font-weight: 700;
-                    color: var(--dark, #102d4d);
-                    margin-bottom: 4px;
-                    line-height: 1.2;
-                }
-                .pejabat-periode {
-                    font-size: 12px;
-                    color: var(--text-muted, #4d6888);
-                    margin-bottom: 0;
-                }
-                .pejabat-desc {
-                    font-size: 13px;
-                    color: var(--text-muted, #4d6888);
-                    margin-top: 12px;
-                    line-height: 1.6;
-                }
-
-                /* ════════ TABLET (≤ 1024px) ════════ */
-                @media (max-width: 1024px) {
-                    .pejabat-grid { gap: 16px; }
-                    .pejabat-name { font-size: 18px; }
-                    .pejabat-info { padding: 16px; }
-                }
-
-                /* ════════ MOBILE (≤ 640px): tetap 2 kolom, lebih compact ════════ */
+                .pejabat-info { padding: 20px; }
+                .pejabat-jabatan { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-600, #4072af); margin-bottom: 6px; }
+                .pejabat-name { font-family: var(--font-display, 'Playfair Display', Georgia, serif); font-size: 20px; font-weight: 700; color: var(--dark, #102d4d); margin-bottom: 4px; line-height: 1.2; }
+                .pejabat-periode { font-size: 12px; color: var(--text-muted, #4d6888); margin-bottom: 0; }
+                .pejabat-desc { font-size: 13px; color: var(--text-muted, #4d6888); margin-top: 12px; line-height: 1.6; }
+                @media (max-width: 1024px) { .pejabat-grid { gap: 16px; } .pejabat-name { font-size: 18px; } .pejabat-info { padding: 16px; } }
                 @media (max-width: 640px) {
                     .pejabat-grid  { grid-template-columns: 1fr 1fr; gap: 12px; }
                     .pejabat-info  { padding: 12px; }
                     .pejabat-jabatan { font-size: 9.5px; letter-spacing: 1px; margin-bottom: 4px; }
                     .pejabat-name  { font-size: 10px; margin-bottom: 3px; }
                     .pejabat-periode { font-size: 7px; }
-                    .pejabat-desc  { font-size: 8px; margin-top: 8px; line-height: 1.5;
-                                     /* batasi baris agar tidak terlalu panjang di layar kecil */
-                                     display: -webkit-box; -webkit-line-clamp: 4;
-                                     -webkit-box-orient: vertical; overflow: hidden; }
+                    .pejabat-desc  { font-size: 8px; margin-top: 8px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
                 }
-
-                /* ════════ SMALL MOBILE (≤ 380px) ════════ */
                 @media (max-width: 380px) {
                     .pejabat-grid  { gap: 8px; }
                     .pejabat-info  { padding: 10px; }
@@ -756,41 +615,20 @@ function MengenalSection() {
             <div className="container">
                 <FadeIn>
                     <div className="mengenal-card">
-                        {/* Kiri: Mini Map */}
                         <div className="mengenal-left" style={{ padding: 0, overflow: 'hidden', position: 'relative', minHeight: 480 }}>
                             <MiniMap />
-                            <div style={{ 
-                                position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 500, 
-                                background: 'linear-gradient(to top, rgba(10,29,61,.95) 0%, rgba(10,29,61,.6) 50%, transparent 100%)', 
-                                padding: '40px 28px 24px' 
-                            }}>
-                                <div style={{ 
-                                    fontSize: 10, letterSpacing: 4, textTransform: 'uppercase', 
-                                    color: 'white', fontWeight: 700, marginBottom: 8,
-                                    display: 'flex', alignItems: 'center', gap: 8
-                                }}>
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 500, background: 'linear-gradient(to top, rgba(10,29,61,.95) 0%, rgba(10,29,61,.6) 50%, transparent 100%)', padding: '40px 28px 24px' }}>
+                                <div style={{ fontSize: 10, letterSpacing: 4, textTransform: 'uppercase', color: 'white', fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <div style={{ width: 20, height: 1, background: 'white' }} />
                                     Smart City
                                     <div style={{ width: 20, height: 1, background: 'white' }} />
                                 </div>
-                                <div style={{ 
-                                    fontFamily: 'var(--font-display)', 
-                                    fontSize: 'clamp(16px, 2.5vw, 22px)',  // ← responsive, tidak nabrak
-                                    color: 'white', fontWeight: 700, marginBottom: 12,
-                                    lineHeight: 1.3,
-                                    textShadow: '0 2px 12px rgba(0,0,0,.5)'  // ← shadow biar lebih terbaca
-                                }}>
+                                <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(16px, 2.5vw, 22px)', color: 'white', fontWeight: 700, marginBottom: 12, lineHeight: 1.3, textShadow: '0 2px 12px rgba(0,0,0,.5)' }}>
                                     Purbalingga Digital & Terhubung
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                                     {[['fa-video','CCTV Live'],['fa-map','Peta Informasi'],['fa-bell','Notifikasi']].map(([ico, lbl]) => (
-                                        <div key={lbl} style={{ 
-                                            display: 'flex', alignItems: 'center', gap: 6, 
-                                            background: 'rgba(255,255,255,.1)', 
-                                            padding: '6px 10px', borderRadius: 6, 
-                                            backdropFilter: 'blur(8px)',
-                                            border: '1px solid rgba(255,255,255,.12)'
-                                        }}>
+                                        <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.1)', padding: '6px 10px', borderRadius: 6, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.12)' }}>
                                             <i className={`fas ${ico}`} style={{ color: 'var(--teal-300)', fontSize: 11 }} />
                                             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.85)', fontWeight: 500 }}>{lbl}</span>
                                         </div>
@@ -799,8 +637,6 @@ function MengenalSection() {
                             </div>
                             <Link to="/peta" style={{ position: 'absolute', inset: 0, zIndex: 600, cursor: 'pointer' }} title="Buka Peta Selengkapnya" />
                         </div>
-
-                        {/* Kanan: Teks */}
                         <div className="mengenal-right">
                             <div className="section-label"><i className="fas fa-map-marked-alt" /> Kenali Lebih Dekat</div>
                             <h2 className="mengenal-right-title">Purbalingga<br />Smart City</h2>
@@ -815,24 +651,25 @@ function MengenalSection() {
     );
 }
 
-function WisataSection() {
+// ─── Section yang fetch API, masing-masing terima prop onDone ───
+
+function WisataSection({ onDone }) {
     const [wisataPreview, setWisataPreview] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Karena kamu pakai 'api' dari axios.js, baseURL biasanya sudah ada /api
-        // Jadi cukup tulis '/wisata' saja
         api.get('/wisata')
             .then(res => {
-                // Pastikan struktur response Laravel kamu benar (res.data atau res.data.data)
                 const data = res.data.data || res.data;
                 setWisataPreview(data.slice(0, 6));
-                setLoading(false);
             })
             .catch(err => {
                 console.error("Gagal ambil data wisata:", err);
+            })
+            .finally(() => {
                 setLoading(false);
+                onDone?.();
             });
     }, []);
 
@@ -856,7 +693,6 @@ function WisataSection() {
                     {loading ? (
                         <p>Memuat data wisata...</p>
                     ) : wisataPreview.length > 0 ? (
-                        // GANTI 'wisataData' MENJADI 'wisataPreview'
                         wisataPreview.map((w) => (
                             <FadeIn key={w.id}>
                                 <WisataCard w={w} />
@@ -871,10 +707,7 @@ function WisataSection() {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// BERITA
-// ═══════════════════════════════════════════════════════════════
-function BeritaSection() {
+function BeritaSection({ onDone }) {
     const [berita, setBerita] = useState([]);
     const [filter, setFilter] = useState('semua');
     const [loading, setLoading] = useState(true);
@@ -884,11 +717,13 @@ function BeritaSection() {
         api.get('/berita')
             .then(res => {
                 setBerita(res.data.data);
-                setLoading(false);
             })
             .catch(err => {
                 console.error(err);
+            })
+            .finally(() => {
                 setLoading(false);
+                onDone?.();
             });
     }, []);
 
@@ -903,6 +738,7 @@ function BeritaSection() {
         const isFeatured = Number(b.featured) === 1;
         return !isFeatured && (filter === 'semua' || b.kategori === filter);
     });
+
     return (
         <section className="berita-section section" id="berita">
             <div className="container">
@@ -927,25 +763,15 @@ function BeritaSection() {
                     {featured && (
                         <FadeIn>
                             <Link to={`/berita/${featured.slug}`} className="berita-featured" style={{ textDecoration: 'none', display: 'block' }}>
-                                {/* ↓ Ubah aspect ratio gambar jadi lebih kecil */}
-                                <img
-                                    src={`${BASE_IMAGE_URL}${featured.thumbnail}`}
-                                    alt={featured.judul}
-                                    className="berita-featured-img"
-                                    style={{ aspectRatio: '16/5', objectFit: 'cover' }}
-                                />
+                                <img src={`${BASE_IMAGE_URL}${featured.thumbnail}`} alt={featured.judul} className="berita-featured-img" style={{ aspectRatio: '16/5', objectFit: 'cover' }} />
                                 <div className="berita-featured-body">
                                     <span className={`berita-tag tag-${featured.kategori}`}>
                                         <i className="fas fa-tag" /> {featured.kategori}
                                     </span>
                                     <h3 className="berita-featured-title">{featured.judul}</h3>
-                                    <p className="berita-featured-desc">
-                                        {featured.konten.substring(0, 150)}...
-                                    </p>
+                                    <p className="berita-featured-desc">{featured.konten.substring(0, 150)}...</p>
                                     <div className="berita-meta">
-                                        <div className="berita-meta-item">
-                                            <i className="fas fa-calendar" /> {new Date(featured.published_at).toLocaleDateString('id-ID')}
-                                        </div>
+                                        <div className="berita-meta-item"><i className="fas fa-calendar" /> {new Date(featured.published_at).toLocaleDateString('id-ID')}</div>
                                         <div className="berita-meta-item"><i className="fas fa-user" /> {featured.penulis}</div>
                                         <div className="berita-meta-item"><i className="fas fa-eye" /> {featured.views.toLocaleString('id-ID')} dibaca</div>
                                     </div>
@@ -956,14 +782,11 @@ function BeritaSection() {
 
                     <FadeIn>
                         <div className="berita-list">
-                            {/* ↓ Maksimal 3 berita di sidebar */}
                             {filtered.slice(0, 3).map((b) => (
                                 <Link to={`/berita/${b.slug}`} key={b.id} className="berita-item" style={{ textDecoration: 'none' }}>
                                     <img src={`${BASE_IMAGE_URL}${b.thumbnail}`} alt={b.judul} className="berita-item-img" />
                                     <div className="berita-item-body">
-                                        <span className={`berita-tag tag-${b.kategori}`} style={{ display: 'inline-flex', marginBottom:'5px' }}>
-                                            {b.kategori}
-                                        </span>
+                                        <span className={`berita-tag tag-${b.kategori}`} style={{ display: 'inline-flex', marginBottom:'5px' }}>{b.kategori}</span>
                                         <div className="berita-item-title" style={{marginBottom:'10px'}}>{b.judul}</div>
                                         <div className="berita-item-meta">
                                             <i className="fas fa-calendar" /> {new Date(b.published_at).toLocaleDateString('id-ID')}
@@ -973,12 +796,7 @@ function BeritaSection() {
                                     </div>
                                 </Link>
                             ))}
-
-                            {/* ↓ Tombol full width dengan hover effect */}
-                            <Link
-                                to="/berita"
-                                className="berita-lihat-semua-btn"
-                            >
+                            <Link to="/berita" className="berita-lihat-semua-btn">
                                 <i className="fas fa-newspaper" />
                                 Lihat Semua Berita
                                 <i className="fas fa-arrow-right" style={{ marginLeft: 'auto' }} />
@@ -991,10 +809,7 @@ function BeritaSection() {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PELAYANAN
-// ═══════════════════════════════════════════════════════════════
-function PelayananSection() {
+function PelayananSection({ onDone }) {
     const [pelayananList, setPelayananList] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -1002,15 +817,16 @@ function PelayananSection() {
         api.get('/pelayanan')
             .then(res => {
                 setPelayananList(res.data.data);
-                setLoading(false);
             })
             .catch(err => {
                 console.error('Gagal fetch pelayanan di Home:', err);
+            })
+            .finally(() => {
                 setLoading(false);
+                onDone?.();
             });
     }, []);
 
-    // ✅ Fix: pakai pelayananList (dari API), bukan pelayananData (mock)
     const visible = pelayananList.slice(0, 8);
 
     return (
@@ -1022,9 +838,7 @@ function PelayananSection() {
                             <i className="fas fa-hands-helping" /> Layanan Digital
                         </div>
                         <h2 className="section-title">Pelayanan Publik Digital</h2>
-                        <p className="section-desc">
-                            Akses berbagai layanan pemerintah Purbalingga secara online, mudah, cepat, dan transparan.
-                        </p>
+                        <p className="section-desc">Akses berbagai layanan pemerintah Purbalingga secara online, mudah, cepat, dan transparan.</p>
                     </div>
                 </FadeIn>
 
@@ -1042,7 +856,6 @@ function PelayananSection() {
                                 </FadeIn>
                             ))}
                         </div>
-
                         {pelayananList.length > 8 && (
                             <FadeIn>
                                 <div style={{ textAlign: 'center', marginTop: 36 }}>
@@ -1060,26 +873,18 @@ function PelayananSection() {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// EVENT
-// ═══════════════════════════════════════════════════════════════
-function EventSection() {
+function EventSection({ onDone }) {
     const [eventList, setEventList] = useState([]);
-    const [loading,   setLoading]   = useState(true);
-    
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
         api.get('/events')
             .then(res => {
                 const raw = Array.isArray(res.data) ? res.data : (res.data.data ?? []);
                 const now = new Date();
- 
-                // Hanya event published yang belum lewat, max 4 card
+
                 const normalized = raw
-                    .filter(e =>
-                        e.status === 'published' &&
-                        e.tanggal_mulai &&
-                        new Date(e.tanggal_mulai) >= now
-                    )
+                    .filter(e => e.status === 'published' && e.tanggal_mulai && new Date(e.tanggal_mulai) >= now)
                     .sort((a, b) => new Date(a.tanggal_mulai) - new Date(b.tanggal_mulai))
                     .slice(0, 4)
                     .map(e => {
@@ -1087,26 +892,16 @@ function EventSection() {
                             .filter(Boolean)
                             .map(t => t.slice(0, 5).replace(':', '.'))
                             .join(' - ') + ' WIB';
- 
+
                         const gambar = e.thumbnail
                             ? e.thumbnail.startsWith('http')
                                 ? e.thumbnail
                                 : `${import.meta.env.VITE_APP_URL ?? 'https://apismartcity.qode.my.id'}/storage/event/${e.thumbnail}`
                             : 'https://placehold.co/640x480?text=No+Image';
- 
-                        return {
-                            id:            e.id,
-                            slug:          e.slug,
-                            nama:          e.nama,
-                            kategori:      e.kategori,
-                            penyelenggara: e.penyelenggara ?? '-',
-                            tanggal:       e.tanggal_mulai,
-                            jam,
-                            lokasi:        e.lokasi ?? '-',
-                            gambar,
-                        };
+
+                        return { id: e.id, slug: e.slug, nama: e.nama, kategori: e.kategori, penyelenggara: e.penyelenggara ?? '-', tanggal: e.tanggal_mulai, jam, lokasi: e.lokasi ?? '-', gambar };
                     });
- 
+
                 setEventList(normalized);
             })
             .catch(err => {
@@ -1114,9 +909,10 @@ function EventSection() {
             })
             .finally(() => {
                 setLoading(false);
+                onDone?.();
             });
     }, []);
-    
+
     return (
         <section className="event-section section" id="event">
             <div className="container">
@@ -1134,25 +930,14 @@ function EventSection() {
                 </FadeIn>
 
                 {loading ? (
-                    /* Skeleton 4 card */
                     <div className="event-grid">
                         {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} style={{
-                                borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-                                background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
-                                animation: 'skPulse 1.4s ease-in-out infinite',
-                                animationDelay: `${i * .1}s`,
-                            }}>
+                            <div key={i} style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', animation: 'skPulse 1.4s ease-in-out infinite', animationDelay: `${i * .1}s` }}>
                                 <div style={{ width: '100%', aspectRatio: '4/3', background: 'rgba(255,255,255,.08)' }} />
                                 <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     <div style={{ height: 11, width: '35%', borderRadius: 6, background: 'rgba(255,255,255,.1)' }} />
                                     <div style={{ height: 15, width: '85%', borderRadius: 6, background: 'rgba(255,255,255,.1)' }} />
                                     <div style={{ height: 15, width: '65%', borderRadius: 6, background: 'rgba(255,255,255,.1)' }} />
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                                        {[80, 65, 55].map((w, j) => (
-                                            <div key={j} style={{ height: 10, width: `${w}%`, borderRadius: 6, background: 'rgba(255,255,255,.08)' }} />
-                                        ))}
-                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1177,17 +962,7 @@ function EventSection() {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PENGUMUMAN
-// ═══════════════════════════════════════════════════════════════
-// Ganti seluruh fungsi PengumumanSection di Home.jsx dengan ini
-// Pastikan sudah import PengumumanCard di bagian atas Home.jsx:
-//   import PengumumanCard from '../components/PengumumanCard';
-
-// Ganti fungsi PengumumanSection di Home.jsx dengan kode ini.
-// Import di bagian atas Home.jsx sudah benar (PengumumanCard & api sudah ada).
-
-function PengumumanSection() {
+function PengumumanSection({ onDone }) {
     const [pengumumanList, setPengumumanList] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -1212,11 +987,13 @@ function PengumumanSection() {
                     return (weight[b.prioritas] || 0) - (weight[a.prioritas] || 0);
                 });
                 setPengumumanList(sorted.slice(0, 3));
-                setLoading(false);
             })
             .catch(err => {
                 console.error("Gagal fetch pengumuman di Home:", err);
+            })
+            .finally(() => {
                 setLoading(false);
+                onDone?.();
             });
     }, []);
 
@@ -1224,20 +1001,11 @@ function PengumumanSection() {
         <section className="pengumuman-section section" id="pengumuman">
             <div className="container">
                 <FadeIn>
-                    <div className="section-header" style={{
-                        display: 'flex',
-                        alignItems: 'flex-end',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: 16,
-                        marginBottom: 40,
-                    }}>
+                    <div className="section-header" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 40 }}>
                         <div>
                             <div className="section-label"><i className="fas fa-bullhorn" /> Informasi Penting</div>
                             <h2 className="section-title">Pengumuman Terbaru</h2>
-                            <p className="section-desc">
-                                Informasi resmi dari Pemerintah Kabupaten Purbalingga yang perlu Anda ketahui.
-                            </p>
+                            <p className="section-desc">Informasi resmi dari Pemerintah Kabupaten Purbalingga yang perlu Anda ketahui.</p>
                         </div>
                         <Link to="/pengumuman" className="btn btn-outline" style={{ flexShrink: 0 }}>
                             Semua Pengumuman <i className="fas fa-arrow-right" />
@@ -1245,14 +1013,7 @@ function PengumumanSection() {
                     </div>
                 </FadeIn>
 
-                {/* Layout: list kiri + sidebar kanan, collapse 1 kolom di mobile */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0, 1fr) 300px',
-                    gap: 28,
-                    alignItems: 'start',
-                }}>
-                    {/* ── Daftar pengumuman ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: 28, alignItems: 'start' }}>
                     <FadeIn>
                         {loading ? (
                             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
@@ -1273,26 +1034,12 @@ function PengumumanSection() {
                         )}
                     </FadeIn>
 
-                    {/* ── Sidebar ── */}
                     <FadeIn>
-                        <div style={{
-                            background: 'linear-gradient(135deg, var(--teal-600), var(--teal-800))',
-                            padding: 24,
-                            borderRadius: 16,
-                            color: 'white',
-                        }}>
+                        <div style={{ background: 'linear-gradient(135deg, var(--teal-600), var(--teal-800))', padding: 24, borderRadius: 16, color: 'white' }}>
                             <i className="fas fa-headset" style={{ fontSize: 24, marginBottom: 12, display: 'block' }} />
                             <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Pusat Pengaduan</div>
-                            <p style={{ fontSize: 13, opacity: 0.9, marginBottom: 20 }}>
-                                Ada laporan atau pengaduan? Kami siap membantu 24 jam.
-                            </p>
-                            <a
-                                href="https://lapor.go.id"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn"
-                                style={{ background: 'white', color: 'var(--teal-700)', width: '100%', justifyContent: 'center' }}
-                            >
+                            <p style={{ fontSize: 13, opacity: 0.9, marginBottom: 20 }}>Ada laporan atau pengaduan? Kami siap membantu 24 jam.</p>
+                            <a href="https://lapor.go.id" target="_blank" rel="noreferrer" className="btn" style={{ background: 'white', color: 'var(--teal-700)', width: '100%', justifyContent: 'center' }}>
                                 Lapor Sekarang
                             </a>
                         </div>
@@ -1300,7 +1047,6 @@ function PengumumanSection() {
                 </div>
             </div>
 
-            {/* ── Responsive inline style ── */}
             <style>{`
                 @media (max-width: 768px) {
                     #pengumuman .container > div:last-child {
@@ -1312,10 +1058,7 @@ function PengumumanSection() {
     );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// STATISTIK
-// ═══════════════════════════════════════════════════════════════
-function StatistikSection() {
+function StatistikSection({ onDone }) {
     const [ringkasan, setRingkasan] = useState([]);
     const [visual, setVisual] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -1327,11 +1070,13 @@ function StatistikSection() {
                     setRingkasan(res.data.data.statistik_ringkasan);
                     setVisual(res.data.data.statistik_visual);
                 }
-                setLoading(false);
             })
             .catch(err => {
                 console.error("Gagal mengambil data statistik:", err);
+            })
+            .finally(() => {
                 setLoading(false);
+                onDone?.();
             });
     }, []);
 
@@ -1356,82 +1101,29 @@ function StatistikSection() {
         return chart ? chart.data_json : [];
     };
 
-    if (loading) {
-        return <div className="text-center py-20 text-white">Memuat data statistik...</div>;
-    }
+    // Saat masih loading, render section kosong (loading screen sudah handle tampilan)
+    if (loading) return <section className="statistik-section section" id="statistik" />;
 
     return (
         <section className="statistik-section section" id="statistik">
             <style>{`
-                .statistik-grid {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 16px;
-                    margin-bottom: 32px;
-                }
-
-                /* Tablet: 4 kolom tetap, tapi card lebih compact */
-                @media (max-width: 900px) {
-                    .statistik-grid {
-                        grid-template-columns: repeat(4, 1fr);
-                        gap: 12px;
-                    }
-                }
-
-                /* Mobile: 3 kolom */
+                .statistik-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+                @media (max-width: 900px) { .statistik-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; } }
                 @media (max-width: 640px) {
-                    .statistik-grid {
-                        grid-template-columns: repeat(3, 1fr);
-                        gap: 10px;
-                    }
-
-                    .statistik-card {
-                        padding: 14px 8px !important;
-                    }
-
-                    .statistik-icon {
-                        
-                        width: 36px !important;
-                        height: 36px !important;
-                        font-size: 14px !important;
-                        margin-bottom: 8px !important;
-                    }
-
-                    .statistik-icon i {
-                        margin-right:-60px;
-                        font-size: 14px !important;
-                    }
-
-                    .statistik-num {
-                        font-size: 15px !important;
-                        margin-bottom: 4px !important;
-                    }
-
-                    .statistik-label {
-                        font-size: 10px !important;
-                        line-height: 1.3 !important;
-                    }
-
-                    .statistik-charts {
-                        grid-template-columns: 1fr !important;
-                        gap: 16px !important;
-                    }
+                    .statistik-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+                    .statistik-card { padding: 14px 8px !important; }
+                    .statistik-icon { width: 36px !important; height: 36px !important; font-size: 14px !important; margin-bottom: 8px !important; }
+                    .statistik-icon i { margin-right:-60px; font-size: 14px !important; }
+                    .statistik-num { font-size: 15px !important; margin-bottom: 4px !important; }
+                    .statistik-label { font-size: 10px !important; line-height: 1.3 !important; }
+                    .statistik-charts { grid-template-columns: 1fr !important; gap: 16px !important; }
                 }
-
-                /* Sangat kecil: tetap 3 kolom tapi lebih mungil */
                 @media (max-width: 380px) {
-                    .statistik-grid {
-                        gap: 8px;
-                    }
-                    .statistik-num {
-                        font-size: 13px !important;
-                    }
-                    .statistik-label {
-                        font-size: 9px !important;
-                    }
-                    .statistik-icon i{
-                        margin-right:-35px;}
-                    }
+                    .statistik-grid { gap: 8px; }
+                    .statistik-num { font-size: 13px !important; }
+                    .statistik-label { font-size: 9px !important; }
+                    .statistik-icon i { margin-right:-35px; }
+                }
             `}</style>
 
             <div className="container" style={{ position: 'relative', zIndex: 1 }}>
@@ -1474,13 +1166,10 @@ function StatistikSection() {
                                                 <span>{row.pct}%</span>
                                             </div>
                                             <div className="chart-bar-track">
-                                                <div
-                                                    className="chart-bar-fill"
-                                                    style={{ width: `${row.pct}%`, background: row.color }}
-                                                />
+                                                <div className="chart-bar-fill" style={{ width: `${row.pct}%`, background: row.color }} />
                                             </div>
                                         </div>
-                                    )) : <p className="text-white opacity-50">Data tidak tersedia</p>}
+                                    )) : <p style={{ color: 'rgba(255,255,255,.5)' }}>Data tidak tersedia</p>}
                                 </div>
                             </div>
                         ))}
@@ -1503,20 +1192,47 @@ function StatistikSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// HOME (compose semua section)
+// HOME — compose semua section + LoadingScreen terpusat
 // ═══════════════════════════════════════════════════════════════
 export default function Home() {
+    // Satu state per section yang fetch API
+    const [loadingMap, setLoadingMap] = useState({
+        wisata:     true,
+        berita:     true,
+        pelayanan:  true,
+        event:      true,
+        pengumuman: true,
+        statistik:  true,
+    });
+
+    // Callback stabil untuk tiap section
+    const setDone = useCallback((key) => {
+        setLoadingMap(prev => ({ ...prev, [key]: false }));
+    }, []);
+
+    // Loading screen hilang hanya jika SEMUA section sudah selesai
+    const isLoading = Object.values(loadingMap).some(Boolean);
+
     return (
         <>
+            {/* Loading screen melayang di atas semua konten */}
+            <LoadingScreen
+                isLoading={isLoading}
+                text="Memuat halaman utama..."
+                minDuration={900}
+            />
+
             <HeroSection />
             <ProfilSection />
             <MengenalSection />
-            <WisataSection />
-            <BeritaSection />
-            <PelayananSection />
-            <EventSection />
-            <PengumumanSection />
-            <StatistikSection />
+
+            {/* Section dengan fetch API — kirim onDone callback */}
+            <WisataSection     onDone={() => setDone('wisata')}     />
+            <BeritaSection     onDone={() => setDone('berita')}     />
+            <PelayananSection  onDone={() => setDone('pelayanan')}  />
+            <EventSection      onDone={() => setDone('event')}      />
+            <PengumumanSection onDone={() => setDone('pengumuman')} />
+            <StatistikSection  onDone={() => setDone('statistik')}  />
         </>
     );
 }
