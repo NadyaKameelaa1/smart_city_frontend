@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
@@ -13,14 +13,22 @@ export default function SuperAdminLogin() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const token = localStorage.getItem("superadmin_token");
+    if (token) {
+      navigate("/super-admin", { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/superadmin/login", form);
+      const res = await api.post("/super-admin/login", form);
       localStorage.setItem("superadmin_token", res.data.token);
-      navigate("/superadmin");
+      localStorage.setItem("superadmin_user", JSON.stringify(res.data.user || null));
+      navigate("/super-admin");
     } catch (err) {
       setError(err.response?.data?.message || "Login gagal. Periksa kredensial Anda.");
     } finally {

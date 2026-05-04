@@ -85,6 +85,14 @@ function Layout() {
         }
         return <Outlet />;
     }
+
+    function ProtectedSuperAdminRoute() {
+        const token = localStorage.getItem("superadmin_token");
+        if (!token) {
+            return <Navigate to="/super-admin/login" replace />;
+        }
+        return <Outlet />;
+    }
     
     return (
         <>
@@ -136,14 +144,16 @@ function Layout() {
                     {/* Super Admin */}
 
                     <Route path="/super-admin/login" element={<SuperAdminLogin />} />
-                    <Route path="/super-admin" element={<KelolaAkun />} />
-                    <Route path="/super-admin/akun" element={<KelolaAkun />} />
-                    <Route path="/super-admin/wisata" element={<KelolaWisata />} />
-                    <Route path="/super-admin/berita" element={<KelolaBerita />} />
-                    <Route path="/super-admin/pengumuman" element={<KelolaPengumuman />} />
-                    <Route path="/super-admin/event" element={<KelolaEvent />} />
-                    <Route path="/super-admin/bangunan" element={<KelolaBangunan />} />
-                    <Route path="/super-admin/cctv" element={<KelolaCCTV />} />
+                    <Route element={<ProtectedSuperAdminRoute />}>
+                        <Route path="/super-admin" element={<KelolaAkun />} />
+                        <Route path="/super-admin/akun" element={<KelolaAkun />} />
+                        <Route path="/super-admin/wisata" element={<KelolaWisata />} />
+                        <Route path="/super-admin/berita" element={<KelolaBerita />} />
+                        <Route path="/super-admin/pengumuman" element={<KelolaPengumuman />} />
+                        <Route path="/super-admin/event" element={<KelolaEvent />} />
+                        <Route path="/super-admin/bangunan" element={<KelolaBangunan />} />
+                        <Route path="/super-admin/cctv" element={<KelolaCCTV />} />
+                    </Route>
                     
 
                     {/* -------------------------------------------------------------- */}

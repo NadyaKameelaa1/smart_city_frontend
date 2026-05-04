@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import api from "../../api/axios";
 
 const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || "https://apismartcity.qode.my.id").replace(/\/$/, "");
 const LOGO_SRC = `/img/logo/logo_smartcity.png`;
@@ -277,11 +278,50 @@ export default function SuperAdminLayout({ children, user }) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [storedUser, setStoredUser] = useState(() => {
+    if (user) return user;
+    try {
+      return JSON.parse(localStorage.getItem("superadmin_user")) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (user) {
+      setStoredUser(user);
+      return;
+    }
+    try {
+      setStoredUser(JSON.parse(localStorage.getItem("superadmin_user")) || null);
+    } catch {
+      setStoredUser(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("superadmin_token");
+    if (!token) {
+      navigate("/super-admin/login", { replace: true });
+    }
+  }, [navigate, location.pathname]);
 
   const isActive = (path) =>
-    path === "/superadmin"
-      ? location.pathname === "/superadmin"
+    path === "/super-admin"
+      ? location.pathname === "/super-admin"
       : location.pathname.startsWith(path);
+
+  const handleLogout = async () => {
+    try {
+      await api.post("/super-admin/logout");
+    } catch (_) {
+      // abaikan error backend, tetap bersihkan sesi lokal
+    } finally {
+      localStorage.removeItem("superadmin_token");
+      localStorage.removeItem("superadmin_user");
+      navigate("/super-admin/login", { replace: true });
+    }
+  };
 
   // Current page title
   const currentNav = NAV_GROUPS.flatMap((g) => g.items).find((i) => isActive(i.path));
@@ -351,13 +391,22 @@ export default function SuperAdminLayout({ children, user }) {
           <div className="sa-sidebar-footer">
             <div className="sa-user-row">
               <div className="sa-user-avatar">
-                {(user?.name?.[0] || "S").toUpperCase()}
+                {(storedUser?.name?.[0] || "S").toUpperCase()}
               </div>
               <div className="sa-user-info">
-                <div className="sa-user-name">{user?.name || "Super Admin"}</div>
+                <div className="sa-user-name">{storedUser?.name || "Super Admin"}</div>
                 <div className="sa-user-role">Super Administrator</div>
               </div>
             </div>
+            <button
+              type="button"
+              className="sa-logout-btn"
+              onClick={handleLogout}
+              title={collapsed ? "Keluar" : undefined}
+            >
+              <i className="fa-solid fa-right-from-bracket" />
+              <span>Keluar</span>
+            </button>
           </div>
         </aside>
 

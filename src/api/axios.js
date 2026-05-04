@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-const currentHost = window.location.hostname;
-
 const api = axios.create({
     baseURL: `https://apismartcity.qode.my.id/api`,
     headers: {
@@ -14,12 +12,15 @@ const api = axios.create({
 
 // Otomatis inject token berdasarkan halaman
 api.interceptors.request.use((config) => {
-  // Cek apakah request dari panel admin
-  const isAdminRoute = window.location.pathname.startsWith("/admin");
+  const pathname = window.location.pathname;
+  const isSuperAdminRoute = pathname.startsWith("/super-admin") || pathname.startsWith("/superadmin");
+  const isAdminRoute = pathname.startsWith("/admin");
 
-  const token = isAdminRoute
-    ? localStorage.getItem("admin_token")
-    : localStorage.getItem("token"); // token user biasa
+  const token = isSuperAdminRoute
+    ? localStorage.getItem("superadmin_token")
+    : isAdminRoute
+      ? localStorage.getItem("admin_token")
+      : localStorage.getItem("token");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
