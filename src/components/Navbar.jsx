@@ -103,7 +103,7 @@ export default function Navbar() {
     const handleAuthAction = async () => {
         if (!isLoggedIn) {
             rememberReturnTo(`${location.pathname}${location.search}${location.hash}`);
-            window.location.href = `https://apisso.qode.my.id/auth/sso/redirect`;
+            window.location.href = `${BACKEND_URL}/auth/sso/redirect`;
             return;
         }
         const ssoToken = session?.token || localStorage.getItem('token') || localStorage.getItem('auth_token');
