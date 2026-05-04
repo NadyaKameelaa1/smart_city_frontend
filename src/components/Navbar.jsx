@@ -103,12 +103,17 @@ export default function Navbar() {
     const handleAuthAction = async () => {
         if (!isLoggedIn) {
             rememberReturnTo(`${location.pathname}${location.search}${location.hash}`);
-            window.location.href = `https://apismartcity.qode.my.id/auth/sso/redirect`;
+            window.location.href = `https://apisso.qode.my.id/auth/sso/redirect`;
             return;
         }
+        const ssoToken = session?.token || localStorage.getItem('token') || localStorage.getItem('auth_token');
 
         try {
-            await api.post('/auth/logout');
+            await api.post(
+                '/auth/logout',
+                null,
+                ssoToken ? { headers: { Authorization: `Bearer ${ssoToken}` } } : undefined,
+            );
         } catch (error) {
             console.warn('Logout backend gagal, lanjut membersihkan sesi lokal.', error);
         } finally {
