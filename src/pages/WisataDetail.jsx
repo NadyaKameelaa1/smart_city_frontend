@@ -17,7 +17,7 @@ const formatJam = (jam) => {
 
 const BACKEND_URL = (import.meta.env.VITE_APP_URL || import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
 const BASE_IMAGE_URL = `https://apismartcity.qode.my.id/storage/`;
-const SSO_LOGIN_URL = `${BACKEND_URL}/auth/sso/redirect`;
+const SSO_LOGIN_URL = 'https://apismartcity.qode.my.id/auth/sso/redirect';
 
 // ─── Rating Stars Component ──────────────────────────────────
 function StarInput({ value, onChange, readonly = false, size = 24 }) {
