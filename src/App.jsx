@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Navbar    from './components/Navbar';
 import Footer    from './components/Footer';
 import ScrollTop from './components/ScrollTop';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import EventCard from './components/EventCard';
 
 import Home             from './pages/Home';
@@ -163,6 +164,7 @@ function Layout() {
             </main>
             {!isFullscreen && <Footer />}
             {!isFullscreen && <ScrollTop />}
+            {!isFullscreen && <PWAInstallPrompt />}
         </>
     );
 }
