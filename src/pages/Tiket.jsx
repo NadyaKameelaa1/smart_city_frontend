@@ -1164,7 +1164,7 @@ export default function Tiket() {
 
             // Fetch profil user — opsional, jangan crash kalau belum login / 404
             try {
-                const profileRes = await api.get('/auth/profile');
+                const profileRes = await api.get('/auth/me');
                 setUserProfile(profileRes.data?.data || profileRes.data || null);
             } catch {
                 // Belum login atau endpoint tidak tersedia — biarkan null
