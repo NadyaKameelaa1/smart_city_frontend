@@ -169,7 +169,7 @@ export default function SuperAdminLogin() {
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: "18px" }}>
               <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>
-                Email atau Username
+                Username
               </label>
               <div style={{ position: "relative" }}>
                 <i className="fa-solid fa-user" style={{
@@ -180,7 +180,7 @@ export default function SuperAdminLogin() {
                   type="text"
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  placeholder="Masukkan username atau email"
+                  placeholder="Masukkan username"
                   required
                   style={{
                     width: "100%",
