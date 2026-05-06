@@ -120,8 +120,8 @@ export default function Peta() {
                 const [gRes, cRes, bRes, cctvRes, wisataRes] = await Promise.all([
                     api.get('/building-groups'),
                     api.get('/building-categories'),
-                    api.get('/super-admin/buildings'),
-                    api.get('/super-admin/cctv'),
+                    api.get('/buildings'),
+                    api.get('/cctv'),
                     api.get('/wisata'),
                 ]);
 
