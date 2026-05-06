@@ -1,5 +1,5 @@
 // src/components/Navbar.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import {
@@ -31,16 +31,18 @@ const navLinks = [
 ];
 
 export default function Navbar() {
-    const [scrolled,     setScrolled]     = useState(false);
-    const [mobileOpen,   setMobileOpen]   = useState(false);
-    const [searchOpen,   setSearchOpen]   = useState(false);
-    const [searchVal,    setSearchVal]    = useState('');
-    // Track which mobile dropdown is open
+    const [scrolled,       setScrolled]       = useState(false);
+    const [mobileOpen,     setMobileOpen]     = useState(false);
+    const [searchOpen,     setSearchOpen]     = useState(false);
+    const [searchVal,      setSearchVal]      = useState('');
     const [mobileDropdown, setMobileDropdown] = useState(null);
-    const [session, setSession] = useState(() => getStoredSsoSession());
-    const location = useLocation();
-    const user = session?.user || null;
-    const isLoggedIn = Boolean(session?.token);
+    const [profileOpen,    setProfileOpen]    = useState(false);
+    const [session,        setSession]        = useState(() => getStoredSsoSession());
+    const profileRef = useRef(null);
+    const location   = useLocation();
+
+    const user        = session?.user || null;
+    const isLoggedIn  = Boolean(session?.token);
     const dashboardUrl = getSsoDashboardUrl(user, session?.token);
     const profileLabel = (user?.name || user?.nama || user?.email || '')
         .replace(/\s+/g, '')
@@ -52,13 +54,12 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    // Tutup semua menu saat navigasi
     useEffect(() => {
         setMobileOpen(false);
         setMobileDropdown(null);
+        setProfileOpen(false);
     }, [location]);
 
-    // Lock body scroll saat mobile menu terbuka
     useEffect(() => {
         document.body.style.overflow = mobileOpen ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
@@ -69,10 +70,22 @@ export default function Navbar() {
             if (e.key === 'Escape') {
                 setSearchOpen(false);
                 setMobileOpen(false);
+                setProfileOpen(false);
             }
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
+    }, []);
+
+    // Close profile dropdown when clicking outside
+    useEffect(() => {
+        const handler = (e) => {
+            if (profileRef.current && !profileRef.current.contains(e.target)) {
+                setProfileOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
     }, []);
 
     useEffect(() => listenSsoSessionChange(() => {
@@ -149,6 +162,12 @@ export default function Navbar() {
                 .btn-login.logout:hover {
                     background: #991b1b;
                 }
+
+                /* ── Profile dropdown wrapper ── */
+                .profile-dropdown-wrapper {
+                    position: relative;
+                    display: inline-flex;
+                }
                 .btn-profile {
                     display: flex; align-items: center; gap: 7px;
                     padding: 8px 18px; border-radius: 50px;
@@ -158,8 +177,66 @@ export default function Navbar() {
                     transition: var(--transition); text-decoration: none;
                 }
                 .btn-profile:hover { background: rgba(64,114,175,.16); transform: translateY(-1px); }
+                .btn-profile .profile-chevron {
+                    font-size: 9px;
+                    color: var(--teal-600);
+                    transition: transform .2s ease;
+                    margin-left: 2px;
+                }
+                .btn-profile.open .profile-chevron {
+                    transform: rotate(180deg);
+                }
 
-                /* ── Hamburger (samakan dengan admin) ── */
+                /* ── Profile dropdown menu ── */
+                .profile-dropdown-menu {
+                    position: absolute;
+                    top: calc(100% + 8px);
+                    right: 0;
+                    min-width: 180px;
+                    background: white;
+                    border: 1px solid rgba(64,114,175,.15);
+                    border-radius: 12px;
+                    box-shadow: 0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(64,114,175,.08);
+                    padding: 6px;
+                    opacity: 0;
+                    visibility: hidden;
+                    transform: translateY(-6px);
+                    transition: opacity .2s ease, transform .2s ease, visibility .2s;
+                    z-index: 1100;
+                }
+                .profile-dropdown-menu.open {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: translateY(0);
+                }
+                .profile-dropdown-item {
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 10px 14px;
+                    border-radius: 8px;
+                    font-family: var(--font-body); font-size: 13px; font-weight: 600;
+                    color: var(--text-dark);
+                    text-decoration: none;
+                    cursor: pointer;
+                    background: none; border: none; width: 100%;
+                    transition: background .15s ease, color .15s ease;
+                    text-align: left;
+                }
+                .profile-dropdown-item:hover {
+                    background: rgba(64,114,175,.08);
+                    color: var(--teal-700);
+                }
+                .profile-dropdown-item i {
+                    width: 16px; font-size: 13px;
+                    color: var(--teal-500);
+                    flex-shrink: 0;
+                }
+                .profile-dropdown-divider {
+                    height: 1px;
+                    background: rgba(64,114,175,.1);
+                    margin: 4px 0;
+                }
+
+                /* ── Hamburger ── */
                 .hamburger {
                     display: none;
                     align-items: center; justify-content: center;
@@ -225,6 +302,21 @@ export default function Navbar() {
                     font-family: var(--font-display); font-size: 14px; font-weight: 700;
                     color: white; letter-spacing: 1px;
                 }
+
+                /* ── Mobile profile quick links ── */
+                .mobile-profile-links {
+                    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;
+                }
+                .mobile-profile-link {
+                    display: inline-flex; align-items: center; gap: 5px;
+                    font-size: 12px; color: var(--teal-700); font-weight: 600;
+                    background: rgba(64,114,175,.08); border-radius: 4px;
+                    padding: 4px 8px; border: none; cursor: pointer; text-decoration: none;
+                    transition: background .15s;
+                }
+                .mobile-profile-link:hover { background: rgba(64,114,175,.16); }
+                .mobile-profile-link i { font-size: 11px; }
+
                 .mobile-logout-btn {
                     display: flex; align-items: center; gap: 10px;
                     padding: 14px 0; margin-top: 8px;
@@ -235,7 +327,6 @@ export default function Navbar() {
                     font-size: 14px; font-weight: 600; cursor: pointer;
                 }
 
-                /* Responsive: sembunyikan user name di layar kecil */
                 @media (max-width: 480px) {
                     .user-avatar-name { display: none; }
                     .user-avatar-btn { padding: 4px; }
@@ -295,16 +386,47 @@ export default function Navbar() {
 
                         {/* Actions */}
                         <div className="navbar-actions">
+                            {/* Profile dropdown (only when logged in) */}
                             {isLoggedIn && (
-                                <button
-                                    type="button"
-                                    className="btn-profile"
-                                    onClick={handleProfileClick}
-                                >
-                                    <i className="fas fa-user-circle" />
-                                    {profileLabel}
-                                </button>
+                                <div className="profile-dropdown-wrapper" ref={profileRef}>
+                                    <button
+                                        type="button"
+                                        className={`btn-profile${profileOpen ? ' open' : ''}`}
+                                        onClick={() => setProfileOpen((v) => !v)}
+                                        aria-haspopup="true"
+                                        aria-expanded={profileOpen}
+                                    >
+                                        <i className="fas fa-user-circle" />
+                                        {profileLabel}
+                                        <i className="fas fa-chevron-down profile-chevron" />
+                                    </button>
+
+                                    <div className={`profile-dropdown-menu${profileOpen ? ' open' : ''}`}>
+                                        {/* Profile */}
+                                        <button
+                                            type="button"
+                                            className="profile-dropdown-item"
+                                            onClick={() => { setProfileOpen(false); handleProfileClick(); }}
+                                        >
+                                            <i className="fas fa-user-circle" />
+                                            Profil Saya
+                                        </button>
+
+                                        <div className="profile-dropdown-divider" />
+
+                                        {/* Riwayat Tiket */}
+                                        <Link
+                                            to="/riwayat"
+                                            className="profile-dropdown-item"
+                                            onClick={() => setProfileOpen(false)}
+                                        >
+                                            <i className="fas fa-ticket-alt" />
+                                            Riwayat Tiket
+                                        </Link>
+                                    </div>
+                                </div>
                             )}
+
                             <button
                                 type="button"
                                 className={`btn-login${isLoggedIn ? ' logout' : ''}`}
@@ -367,14 +489,27 @@ export default function Navbar() {
                         <div className="mobile-user-info">
                             <div className="mobile-avatar">{getInitials(user?.name || user?.nama || user?.email || '')}</div>
                             <div>
-                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--dark)' }}>{user?.name || user?.nama || user?.email}</div>
-                                <button
-                                    type="button"
-                                    style={{ fontSize: 12, color: 'var(--teal-600)', fontWeight: 600, backgroundColor:'#eef3fa', borderRadius: 4, padding: '4px 8px', border: 'none', cursor: 'pointer' }}
-                                    onClick={() => { setMobileOpen(false); handleProfileClick(); }}
-                                >
-                                    {profileLabel}
-                                </button>
+                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--dark)', marginBottom: 6 }}>
+                                    {user?.name || user?.nama || user?.email}
+                                </div>
+                                <div className="mobile-profile-links">
+                                    <button
+                                        type="button"
+                                        className="mobile-profile-link"
+                                        onClick={() => { setMobileOpen(false); handleProfileClick(); }}
+                                    >
+                                        <i className="fas fa-user-circle" />
+                                        Profil Saya
+                                    </button>
+                                    <Link
+                                        to="/riwayat"
+                                        className="mobile-profile-link"
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <i className="fas fa-ticket-alt" />
+                                        Riwayat Tiket
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     )}
