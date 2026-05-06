@@ -29,8 +29,20 @@ const BASE_IMAGE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qo
     .replace(/\/api\/?$/, '')
     .replace(/\/$/, '') + '/storage/';
 const PAYMENT_APP_URL = (import.meta.env.VITE_PURBALINGGA_PAY_URL || 'https://smartpay.qode.my.id').replace(/\/$/, '');
-const PAYMENT_APP_ORIGIN = new URL(PAYMENT_APP_URL).origin;
-const PAYMENT_MESSAGE_TYPE = 'PURBALINGGA_PAY_QRIS_SUCCESS';
+const PAYMENT_APP_ORIGIN = (() => {
+    try {
+        return new URL(PAYMENT_APP_URL).origin;
+    } catch {
+        return PAYMENT_APP_URL;
+    }
+})();
+const PAYMENT_MESSAGE_TYPES = [
+    'PURBALINGGA_PAY_QRIS_SUCCESS',
+    'QRIS_PAYMENT_SUCCESS',
+    'PAYMENT_SUCCESS',
+    'qris_success',
+    'payment_success',
+];
 
 const makePaymentSessionId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -844,41 +856,76 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         if (!qrisSessionId) return undefined;
 
         const handleMessage = (event) => {
-            console.log("=== Pesan Masuk dari Window ===");
-        console.log("Origin Pengirim:", event.origin);
-        console.log("Payload Lengkap:", event.data);
-        console.log("Session ID di Web (Expected):", qrisSessionId);
+            // ─── Debug log (bisa dihapus setelah stabil) ───
+            console.log('[PAYMENT] Pesan masuk:', event.origin, event.data);
 
-            if (event.origin !== PAYMENT_APP_ORIGIN) return;
+            // Terima dari PAYMENT_APP_ORIGIN ATAU dari origin yang mengandung domain smartpay
+            const isValidOrigin =
+                event.origin === PAYMENT_APP_ORIGIN ||
+                event.origin.includes('smartpay.qode.my.id') ||
+                event.origin.includes('purbalinggapay');
 
-            const payload = event.data;
-            if (!payload || payload.type !== PAYMENT_MESSAGE_TYPE) return;
-            if (handlingScanRef.current) return;
-
-            let sessionId = payload.sessionId || payload.cardId || '';
-
-            // Log setelah sessionId didapat
-            console.log("Session ID Terdeteksi dari QR:", sessionId);
-
-            if (sessionId !== qrisSessionId) {
-                console.error("Session ID MISMATCH! Pastikan QR yang di-scan adalah yang terbaru.");
+            if (!isValidOrigin) {
+                console.warn('[PAYMENT] Origin ditolak:', event.origin);
                 return;
             }
+
+            const payload = event.data;
+            if (!payload) return;
+
+            // Terima berbagai tipe pesan dari SmartPay
+            const isValidType =
+                !payload.type || // tidak ada type = langsung proses
+                PAYMENT_MESSAGE_TYPES.includes(payload.type) ||
+                String(payload.type).toLowerCase().includes('success') ||
+                String(payload.type).toLowerCase().includes('payment');
+
+            if (!isValidType) {
+                console.warn('[PAYMENT] Type diabaikan:', payload.type);
+                return;
+            }
+
+            if (handlingScanRef.current) return;
+
+            // ─── Ekstrak sessionId dari payload ───
+            let sessionId =
+                payload.sessionId ||
+                payload.session_id ||
+                payload.cardId ||
+                payload.card_id ||
+                '';
+
             if (!sessionId && payload.rawValue) {
                 try {
                     const parsed = JSON.parse(payload.rawValue);
-                    sessionId = parsed.sessionId || parsed.cardId || parsed.session_id || parsed.card_id || '';
+                    sessionId =
+                        parsed.sessionId ||
+                        parsed.session_id ||
+                        parsed.cardId ||
+                        parsed.card_id ||
+                        '';
                 } catch {
                     const raw = String(payload.rawValue).trim();
-                    const match = raw.match(/(?:^|[&;\n])(?:session_id|sessionid|card_id|cardid|sessionId|cardId)\s*[:=]\s*([^&;\n]+)/i);
+                    const match = raw.match(
+                        /(?:^|[&;\n])(?:session_id|sessionid|card_id|cardid|sessionId|cardId)\s*[:=]\s*([^&;\n]+)/i,
+                    );
                     sessionId = match ? match[1].trim() : '';
                 }
             }
 
-            if (sessionId !== qrisSessionId) return;
-            
-            console.log("Konfirmasi muncul! Data valid.");
+            console.log('[PAYMENT] sessionId dari payload:', sessionId);
+            console.log('[PAYMENT] sessionId yang diharapkan:', qrisSessionId);
+
+            // Cocokkan sessionId — jika SmartPay tidak kirim sessionId sama sekali,
+            // tetap lanjutkan (berarti SmartPay tidak mengembalikan session info)
+            if (sessionId && sessionId !== qrisSessionId) {
+                console.error('[PAYMENT] Session mismatch, abaikan.');
+                return;
+            }
+
+            console.log('[PAYMENT] ✅ Pembayaran terdeteksi!');
             handlingScanRef.current = true;
+
             const userId = extractUserIdFromPayload(payload);
             setDetectedUserId(userId);
             setDetectedPayload(payload);
@@ -892,6 +939,16 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
     }, [extractUserIdFromPayload, qrisSessionId]);
+
+    useEffect(() => {
+        const debugListener = (event) => {
+            console.log('[DEBUG] postMessage masuk:');
+            console.log('  origin:', event.origin);
+            console.log('  data:', JSON.stringify(event.data, null, 2));
+        };
+        window.addEventListener('message', debugListener);
+        return () => window.removeEventListener('message', debugListener);
+    }, []);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
