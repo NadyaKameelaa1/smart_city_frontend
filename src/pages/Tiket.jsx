@@ -421,7 +421,7 @@ function Step1({ wisata, qty, setQty, tanggal, setTanggal, onNext }) {
 // ─── Step 2: Data Pengunjung ──────────────────────────────────
 function Step2({ form, setForm, onNext, onBack, userProfile }) {
   // state controlled untuk field wajib
-  const [nama, setNama] = useState(form.nama || userProfile?.name || '');
+  const [nama, setNama] = useState(form.nama || userProfile?.nama || '');
   const [hp, setHp] = useState(form.hp || userProfile?.no_hp || '');
   const [email, setEmail] = useState(form.email || userProfile?.email || '');
   const [kecamatanId, setKecamatanId] = useState(
@@ -431,6 +431,15 @@ function Step2({ form, setForm, onNext, onBack, userProfile }) {
   const [kecamatans, setKecamatans] = useState([]);
   const [loadingKec, setLoadingKec] = useState(true);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (userProfile) {
+      if (!nama) setNama(userProfile.nama || '');
+      if (!hp) setHp(userProfile.no_hp || '');
+      if (!email) setEmail(userProfile.email || '');
+      if (!kecamatanId) setKecamatanId(userProfile.kecamatan_id || '');
+    }
+  }, [userProfile]);
 
   // ambil data kecamatan
   useEffect(() => {
