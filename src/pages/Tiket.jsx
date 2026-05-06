@@ -941,13 +941,15 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
     }, [extractUserIdFromPayload, qrisSessionId]);
 
     useEffect(() => {
-        const debugListener = (event) => {
-            console.log('[DEBUG] postMessage masuk:');
-            console.log('  origin:', event.origin);
-            console.log('  data:', JSON.stringify(event.data, null, 2));
+        const debugAll = (e) => {
+            console.log('[DEBUG ALL MESSAGE]', {
+                origin: e.origin,
+                data: e.data,
+                source: e.source,
+            });
         };
-        window.addEventListener('message', debugListener);
-        return () => window.removeEventListener('message', debugListener);
+        window.addEventListener('message', debugAll);
+        return () => window.removeEventListener('message', debugAll);
     }, []);
 
     return (
