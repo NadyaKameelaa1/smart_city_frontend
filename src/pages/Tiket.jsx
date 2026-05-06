@@ -844,6 +844,11 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         if (!qrisSessionId) return undefined;
 
         const handleMessage = (event) => {
+            console.log("=== Pesan Masuk dari Window ===");
+        console.log("Origin Pengirim:", event.origin);
+        console.log("Payload Lengkap:", event.data);
+        console.log("Session ID di Web (Expected):", qrisSessionId);
+
             if (event.origin !== PAYMENT_APP_ORIGIN) return;
 
             const payload = event.data;
@@ -851,6 +856,14 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             if (handlingScanRef.current) return;
 
             let sessionId = payload.sessionId || payload.cardId || '';
+
+            // Log setelah sessionId didapat
+            console.log("Session ID Terdeteksi dari QR:", sessionId);
+
+            if (sessionId !== qrisSessionId) {
+                console.error("Session ID MISMATCH! Pastikan QR yang di-scan adalah yang terbaru.");
+                return;
+            }
             if (!sessionId && payload.rawValue) {
                 try {
                     const parsed = JSON.parse(payload.rawValue);
@@ -863,7 +876,8 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             }
 
             if (sessionId !== qrisSessionId) return;
-
+            
+            console.log("Konfirmasi muncul! Data valid.");
             handlingScanRef.current = true;
             const userId = extractUserIdFromPayload(payload);
             setDetectedUserId(userId);
