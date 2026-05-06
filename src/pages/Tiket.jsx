@@ -1,5 +1,5 @@
 // src/pages/Tiket.jsx
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useParams, Link } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '../api/axios';
@@ -679,10 +679,13 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
     const [paymentError, setPaymentError] = useState('');
     const [openingApp, setOpeningApp] = useState(false);
     const [submittingOrder, setSubmittingOrder] = useState(false);
-    const handlingSuccessRef = useRef(false);
+    const [detectedUserId, setDetectedUserId] = useState('');
+    const [detectedPayload, setDetectedPayload] = useState(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const handlingScanRef = useRef(false);
 
     const harga = getHargaByDate(wisata?.prices, tanggal);
-    const total = wisata ? qty.dewasa * (harga.harga_dewasa || 0) + qty.anak * (harga.harga_anak || 0) : 0;
+    const totalPrice = wisata ? qty.dewasa * (harga.harga_dewasa || 0) + qty.anak * (harga.harga_anak || 0) : 0;
     const tglFormatted = tanggal
         ? new Date(tanggal + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         : '-';
@@ -695,15 +698,39 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             qty,
             form,
             tanggal,
-            total,
+            total: totalPrice,
         });
-    }, [form, qrisSessionId, qty, tanggal, total, wisata]);
+    }, [form, qrisSessionId, qty, tanggal, totalPrice, wisata]);
+
+    const extractUserIdFromPayload = useCallback((payload) => {
+        if (!payload) return '';
+
+        const direct = payload.user_id || payload.userId || payload.userid || payload.customer_id || payload.customerId;
+        if (direct) return String(direct).trim();
+
+        if (!payload.rawValue) return '';
+
+        try {
+            const parsed = JSON.parse(payload.rawValue);
+            const nested = parsed.user_id || parsed.userId || parsed.userid || parsed.customer_id || parsed.customerId;
+            if (nested) return String(nested).trim();
+        } catch {
+            const raw = String(payload.rawValue).trim();
+            const match = raw.match(/(?:^|[&;\n])(?:user_id|userid|userId|customer_id|customerId)\s*[:=]\s*([^&;\n]+)/i);
+            if (match?.[1]) return match[1].trim();
+        }
+
+        return '';
+    }, []);
 
     const resetPaymentState = () => {
         setPaymentStatus('idle');
         setPaymentMessage('Klik metode QRIS untuk menampilkan kode pembayaran.');
         setPaymentError('');
-        handlingSuccessRef.current = false;
+        setDetectedUserId('');
+        setDetectedPayload(null);
+        setConfirmOpen(false);
+        handlingScanRef.current = false;
     };
 
     const openQrisPayment = () => {
@@ -713,6 +740,10 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         setPaymentStatus('waiting');
         setPaymentError('');
         setPaymentMessage('Tunjukkan QR ini ke aplikasi Purbalingga Pay untuk dipindai.');
+        setDetectedUserId('');
+        setDetectedPayload(null);
+        setConfirmOpen(false);
+        handlingScanRef.current = false;
     };
 
     const openPaymentApp = () => {
@@ -730,15 +761,94 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         setOpeningApp(false);
     };
 
+    const getUserToken = () =>
+        localStorage.getItem('token')
+        || localStorage.getItem('auth_token')
+        || localStorage.getItem('admin_token')
+        || localStorage.getItem('superadmin_token');
+
+    const handlePayment = async () => {
+        const token = getUserToken();
+        if (!token) {
+            setPaymentStatus('error');
+            setPaymentError('Token login tidak ditemukan. Silakan login ulang.');
+            return;
+        }
+
+        setSubmittingOrder(true);
+        setPaymentStatus('processing');
+        setPaymentError('');
+        setPaymentMessage('Memproses pembayaran tiket...');
+
+        try {
+            const paymentRes = await api.post(
+                'https://apismartpay.qode.my.id/api/transactions',
+                {
+                    type: 'payment',
+                    amount: totalPrice,
+                    title: 'Bayar Tiket',
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+
+            if (paymentRes.status !== 201) {
+                throw new Error('Pembayaran gagal diproses.');
+            }
+
+            await api.post(
+                'https://apismartcity.qode.my.id/api/tiket',
+                {   
+                    user_id: detectedUserId || undefined,
+                    wisata_id: wisata.id,
+                    tanggal_kunjungan: tanggal,
+                    jumlah_dewasa: qty.dewasa,
+                    jumlah_anak: qty.anak,
+                    total_harga: totalPrice,
+                    metode_pembayaran: 'QRIS',
+                    qr_session_id: qrisSessionId || undefined,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+
+            setPaymentStatus('success');
+            setPaymentMessage('Pembayaran berhasil. Mengarahkan ke tahap selesai...');
+            setConfirmOpen(false);
+            onNext();
+        } catch (err) {
+            const status = err?.response?.status;
+            if (status === 422) {
+                alert('Saldo tidak cukup');
+            }
+            setPaymentStatus('error');
+            setPaymentError(err?.response?.data?.message || err?.message || 'Gagal memproses pembayaran.');
+            setPaymentMessage('Pembayaran gagal diproses. Silakan coba lagi.');
+            handlingScanRef.current = false;
+        } finally {
+            setSubmittingOrder(false);
+        }
+    };
+
     useEffect(() => {
         if (!qrisSessionId) return undefined;
 
-        const handleMessage = async (event) => {
+        const handleMessage = (event) => {
             if (event.origin !== PAYMENT_APP_ORIGIN) return;
 
             const payload = event.data;
             if (!payload || payload.type !== PAYMENT_MESSAGE_TYPE) return;
-            if (handlingSuccessRef.current) return;
+            if (handlingScanRef.current) return;
 
             let sessionId = payload.sessionId || payload.cardId || '';
             if (!sessionId && payload.rawValue) {
@@ -754,40 +864,20 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
             if (sessionId !== qrisSessionId) return;
 
-            handlingSuccessRef.current = true;
-            setSubmittingOrder(true);
-            setPaymentStatus('processing');
-            setPaymentMessage('Pembayaran terdeteksi. Menyimpan tiket...');
+            handlingScanRef.current = true;
+            const userId = extractUserIdFromPayload(payload);
+            setDetectedUserId(userId);
+            setDetectedPayload(payload);
+            setPaymentStatus('detected');
+            setPaymentMessage('QR berhasil terdeteksi. Klik konfirmasi pemesanan untuk melanjutkan.');
             setPaymentError('');
-
-            try {
-                await api.post('/tiket', {
-                    wisata_id: wisata.id,
-                    tanggal_kunjungan: tanggal,
-                    jumlah_dewasa: qty.dewasa,
-                    jumlah_anak: qty.anak,
-                    total_harga: total,
-                    metode_pembayaran: 'QRIS',
-                    kode_order: payload.kodeOrder || undefined,
-                });
-
-                setPaymentStatus('success');
-                setPaymentMessage('Pembayaran QRIS berhasil. Mengarahkan ke tahap selesai...');
-                setQrisOpen(false);
-                onNext();
-            } catch (err) {
-                handlingSuccessRef.current = false;
-                setPaymentStatus('error');
-                setPaymentError(err.response?.data?.message || 'Pembayaran berhasil, tetapi penyimpanan tiket gagal.');
-                setPaymentMessage('Ada kendala saat menyimpan tiket. Silakan coba lagi.');
-            } finally {
-                setSubmittingOrder(false);
-            }
+            setQrisOpen(false);
+            setConfirmOpen(true);
         };
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [onNext, qrisSessionId, tanggal, total, wisata, qty.dewasa, qty.anak]);
+    }, [extractUserIdFromPayload, qrisSessionId]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -819,7 +909,7 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 800, paddingTop: 12, borderTop: '1px dashed var(--teal-200)', marginTop: 4, color: 'var(--dark)' }}>
                     <span>Total Pembayaran</span>
-                    <span style={{ color: 'var(--teal-700)' }}>{formatRupiah(total)}</span>
+                    <span style={{ color: 'var(--teal-700)' }}>{formatRupiah(totalPrice)}</span>
                 </div>
             </div>
             <div>
@@ -858,7 +948,7 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                     <i className="fas fa-check-circle" style={{ color: 'var(--teal-500)', fontSize: 18, flexShrink: 0 }} />
                 </button>
                 <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                    Setelah QR dipindai dan pembayaran sukses di aplikasi payment, halaman ini akan otomatis lanjut ke tahap selesai.
+                    Setelah QR dipindai, kamu akan diminta klik konfirmasi pemesanan sebelum pembayaran diproses.
                 </div>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -866,7 +956,7 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                     <i className="fas fa-arrow-left" /> Kembali
                 </button>
                 <button onClick={openQrisPayment} disabled={submittingOrder} className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '14px', fontSize: 15 }}>
-                    {submittingOrder ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : <><i className="fas fa-qrcode" /> Buka QRIS {formatRupiah(total)}</>}
+                    {submittingOrder ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : <><i className="fas fa-qrcode" /> Buka QRIS {formatRupiah(totalPrice)}</>}
                 </button>
             </div>
 
@@ -952,7 +1042,7 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
                                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
                                     <span style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--teal-50)', color: 'var(--teal-700)', fontSize: 12, fontWeight: 700 }}>
-                                        {formatRupiah(total)}
+                                        {formatRupiah(totalPrice)}
                                     </span>
                                     <span style={{ padding: '6px 10px', borderRadius: 999, background: '#f0fdf4', color: '#15803d', fontSize: 12, fontWeight: 700 }}>
                                         {wisata?.nama}
@@ -1043,10 +1133,77 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                                 </div>
 
                                 <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                                    Status: <strong>{paymentStatus === 'waiting' ? 'Menunggu scan' : paymentStatus === 'processing' ? 'Memproses' : paymentStatus === 'success' ? 'Berhasil' : paymentStatus === 'error' ? 'Gagal' : 'Siap'}</strong>
+                                    Status: <strong>{paymentStatus === 'waiting' ? 'Menunggu scan' : paymentStatus === 'detected' ? 'QR Terdeteksi' : paymentStatus === 'processing' ? 'Memproses' : paymentStatus === 'success' ? 'Berhasil' : paymentStatus === 'error' ? 'Gagal' : 'Siap'}</strong>
                                     <div style={{ marginTop: 4 }}>{paymentMessage}</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmOpen && detectedPayload && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15,23,42,.58)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 70,
+                    padding: 20,
+                }}>
+                    <div style={{
+                        width: 'min(460px, 100%)',
+                        background: 'white',
+                        borderRadius: 18,
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 24px 60px rgba(15,23,42,.25)',
+                        padding: 22,
+                    }}>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>
+                            Konfirmasi Pemesanan
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 14 }}>
+                            QR berhasil terdeteksi{detectedUserId ? ` untuk user #${detectedUserId}` : ''}. Klik konfirmasi untuk memproses pembayaran dan menyimpan pesanan tiket.
+                        </div>
+                        <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: '#f8fafc', marginBottom: 16 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
+                                <span>Total</span>
+                                <strong>{formatRupiah(totalPrice)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)' }}>
+                                <span>Metode</span>
+                                <span>QRIS</span>
+                            </div>
+                        </div>
+                        {paymentError && (
+                            <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', fontSize: 13 }}>
+                                {paymentError}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button
+                                type="button"
+                                className="btn btn-outline"
+                                style={{ flex: 1, justifyContent: 'center' }}
+                                onClick={() => {
+                                    setConfirmOpen(false);
+                                    handlingScanRef.current = false;
+                                }}
+                                disabled={submittingOrder}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ flex: 1, justifyContent: 'center' }}
+                                onClick={handlePayment}
+                                disabled={submittingOrder}
+                            >
+                                {submittingOrder ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : 'Konfirmasi Pemesanan'}
+                            </button>
                         </div>
                     </div>
                 </div>
