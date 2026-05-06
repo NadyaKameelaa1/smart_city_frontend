@@ -1,9 +1,9 @@
 // src/pages/RiwayatTiket.jsx
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-
-const DEV_USER_ID = '1e23d1b3-4e2e-4d6c-aba6-2d1889cfaccb';
+import { getStoredSsoSession, rememberReturnTo, listenSsoSessionChange } from '../lib/ssoSession';
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
 
@@ -120,7 +120,7 @@ const RESPONSIVE_STYLE = `
 }
 @media (max-width: 560px) {
     .rt-card-grid  { grid-template-columns: 1fr; gap: 14px; }
-    .rt-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .rt-stats-grid { grid-template-columns: repeat(3, 1fr); }
     .rt-detail-grid { grid-template-columns: 1fr; }
     .rt-modal-actions { flex-direction: column-reverse; }
     .rt-modal-actions > * { width: 100%; justify-content: center; }
@@ -134,9 +134,36 @@ const RESPONSIVE_STYLE = `
 `;
 
 // ─────────────────────────────────────────────────────────────
+// NOT LOGGED IN STATE
+// ─────────────────────────────────────────────────────────────
+function NotLoggedIn() {
+    const handleLogin = () => {
+        rememberReturnTo('/riwayat');
+        window.location.href = 'https://apismartcity.qode.my.id/auth/sso/redirect';
+    };
+
+    return (
+        <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--teal-50)', border: '2px solid var(--teal-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+                <i className="fas fa-lock" style={{ fontSize: 32, color: 'var(--teal-500)' }} />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--dark)', marginBottom: 10 }}>
+                Login untuk Melihat Tiket
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, lineHeight: 1.7, marginBottom: 28 }}>
+                Kamu perlu login terlebih dahulu untuk melihat riwayat tiket wisata yang pernah kamu pesan.
+            </p>
+            <button onClick={handleLogin} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: 14, borderRadius: 50 }}>
+                <i className="fas fa-sign-in-alt" /> Login Sekarang
+            </button>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
 // RATING MODAL  — popup di tengah layar
 // ─────────────────────────────────────────────────────────────
-function RatingModal({ order, onClose, onSubmitSuccess }) {
+function RatingModal({ order, userId, token, onClose, onSubmitSuccess }) {
     const [rating,    setRating]    = useState(0);
     const [hovered,   setHovered]   = useState(0);
     const [submitted, setSubmitted] = useState(false);
@@ -148,7 +175,11 @@ function RatingModal({ order, onClose, onSubmitSuccess }) {
         if (rating === 0 || loading) return;
         setLoading(true);
         try {
-            await api.post(`/dev/rating/${DEV_USER_ID}/${order.wisata_id}`, { rating });
+            await api.post(
+                `/wisata/${order.wisata_id}/rating`,
+                { rating },
+                token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+            );
             setSubmitted(true);
             setTimeout(() => {
                 onSubmitSuccess(order.wisata_id, rating);
@@ -264,7 +295,7 @@ function RatingModal({ order, onClose, onSubmitSuccess }) {
 // ─────────────────────────────────────────────────────────────
 // REVIEW TOAST  — muncul otomatis dari bawah kiri
 // ─────────────────────────────────────────────────────────────
-function ReviewToast({ order, onClose, onSubmitSuccess }) {
+function ReviewToast({ order, token, onClose, onSubmitSuccess }) {
     const [rating,    setRating]    = useState(0);
     const [hovered,   setHovered]   = useState(0);
     const [submitted, setSubmitted] = useState(false);
@@ -282,7 +313,11 @@ function ReviewToast({ order, onClose, onSubmitSuccess }) {
         if (rating === 0 || loading) return;
         setLoading(true);
         try {
-            await api.post(`/dev/rating/${DEV_USER_ID}/${order.wisata_id}`, { rating });
+            await api.post(
+                `/wisata/${order.wisata_id}/rating`,
+                { rating },
+                token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+            );
             setSubmitted(true);
             setTimeout(() => {
                 onSubmitSuccess(order.wisata_id, rating);
@@ -385,7 +420,7 @@ function ReviewToast({ order, onClose, onSubmitSuccess }) {
 // ─────────────────────────────────────────────────────────────
 // E-TICKET MODAL
 // ─────────────────────────────────────────────────────────────
-export function ETicketModal({ order, onClose, onStatusChange }) {
+export function ETicketModal({ order, token, onClose, onStatusChange }) {
     const isUsed       = order.status_tiket === 'Digunakan';
     const tglFormatted = formatTanggal(order.tanggal_kunjungan);
     const qrCanvasRef  = useRef(null);
@@ -394,7 +429,10 @@ export function ETicketModal({ order, onClose, onStatusChange }) {
         if (isUsed) return;
         const poll = async () => {
             try {
-                const res = await api.get(`/admin/tiket/${order.kode_order}`);
+                const res = await api.get(
+                    `/admin/tiket/${order.kode_order}`,
+                    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+                );
                 const statusBaru = res.data?.data?.status_tiket || res.data?.status;
                 if (statusBaru === 'Digunakan' && order.status_tiket !== 'Digunakan') {
                     onStatusChange?.(order.id, 'Digunakan');
@@ -611,7 +649,6 @@ function DetailModal({ order, onClose, onShowETicket, onOpenRating }) {
                             </div>
                         )}
                         <div className="rt-modal-actions">
-                            {/* Tombol Rating */}
                             {canRate && (
                                 <button
                                     onClick={() => { onClose(); onOpenRating(order); }}
@@ -712,7 +749,6 @@ function OrderCard({ order, onClick, onOpenRating }) {
                 </div>
             </div>
 
-            {/* ── Tombol Rating — hanya muncul jika Digunakan & belum direview ── */}
             {canRate && (
                 <div style={{ padding: '0 16px 16px' }}>
                     <button
@@ -742,6 +778,19 @@ function OrderCard({ order, onClick, onOpenRating }) {
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────
 export default function RiwayatTiket() {
+    // ── Ambil session SSO ──────────────────────────────────────
+    const [session, setSession] = useState(() => getStoredSsoSession());
+
+    useEffect(() => listenSsoSessionChange(() => {
+        setSession(getStoredSsoSession());
+    }), []);
+
+    const token      = session?.token || null;
+    const user       = session?.user  || null;
+    const userId     = user?.id       || user?.uuid || null;
+    const isLoggedIn = Boolean(token);
+
+    // ── State halaman ──────────────────────────────────────────
     const [orders,       setOrders]       = useState([]);
     const [loading,      setLoading]      = useState(true);
     const [error,        setError]        = useState(null);
@@ -750,7 +799,7 @@ export default function RiwayatTiket() {
     const [selected,     setSelected]     = useState(null);
     const [eTicketOrder, setETicketOrder] = useState(null);
     const [reviewToast,  setReviewToast]  = useState(null);
-    const [ratingOrder,  setRatingOrder]  = useState(null);   // ← RatingModal (popup tengah)
+    const [ratingOrder,  setRatingOrder]  = useState(null);
     const [reviewedWisataIds, setReviewedWisataIds] = useState(new Set());
 
     const handleStatusChange = (orderId, statusBaru) => {
@@ -758,27 +807,41 @@ export default function RiwayatTiket() {
         setETicketOrder(prev => prev && prev.id === orderId ? { ...prev, status_tiket: statusBaru } : prev);
     };
 
-    // Fetch tiket
+    // ── Fetch tiket milik user yang login ──────────────────────
     useEffect(() => {
+        // Jika belum login, tidak perlu fetch
+        if (!isLoggedIn) {
+            setLoading(false);
+            return;
+        }
+
         const fetchOrders = async () => {
             setLoading(true);
             setError(null);
             try {
-                // const res = await api.get('/tiket-saya'); // uncomment setelah SSO aktif
-                const res = await api.get(`/dev/tiket/${DEV_USER_ID}`);
+                // Gunakan endpoint authenticated — token dikirim via Authorization header
+                const res = await api.get('/tiket', {
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                });
                 const data = res.data?.data ?? res.data ?? [];
                 setOrders(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error(err);
-                setError('Gagal memuat riwayat tiket. Pastikan kamu sudah login.');
+                // Jika 401, session mungkin kedaluwarsa
+                if (err.response?.status === 401) {
+                    setError('Sesi kamu telah berakhir. Silakan login ulang.');
+                } else {
+                    setError('Gagal memuat riwayat tiket. Coba beberapa saat lagi.');
+                }
             } finally {
                 setLoading(false);
             }
         };
-        fetchOrders();
-    }, []);
 
-    // Review toast otomatis — jangan tampil kalau RatingModal sudah terbuka
+        fetchOrders();
+    }, [isLoggedIn, token]);
+
+    // ── Review toast otomatis ──────────────────────────────────
     useEffect(() => {
         if (loading || reviewToast || ratingOrder) return;
         const reviewable = orders.find(o =>
@@ -804,7 +867,6 @@ export default function RiwayatTiket() {
         setReviewToast(null);
     };
 
-    // Buka RatingModal; tutup toast bila sedang tampil
     const handleOpenRating = (order) => {
         setReviewToast(null);
         setRatingOrder(order);
@@ -829,6 +891,29 @@ export default function RiwayatTiket() {
         sudahDigunakan: orders.filter(o => o.status_tiket === 'Digunakan').length,
     }), [orders]);
 
+    // ── Render: belum login ────────────────────────────────────
+    if (!isLoggedIn) {
+        return (
+            <div className="page-riwayat" style={{ background: 'var(--cream)', minHeight: '100vh' }}>
+                <style>{RESPONSIVE_STYLE}</style>
+                <div className="page-hero-v2 page-hero-v2--riwayat" style={{ background: 'linear-gradient(135deg, #102d4d 0%, #1e3c6d 55%, #284d83 100%)' }}>
+                    <div className="page-hero-v2__overlay" />
+                    <div className="page-hero-v2__pattern" />
+                    <div className="page-hero-v2__deco">{Array.from({ length: 25 }).map((_, i) => <span key={i} />)}</div>
+                    <div className="container page-hero-v2__content">
+                        <div className="page-hero-v2__label"><i className="fas fa-ticket-alt" /> Tiket Saya</div>
+                        <h1 className="page-hero-v2__title">Riwayat Tiket</h1>
+                        <p className="page-hero-v2__desc">Kelola dan pantau semua tiket wisata yang pernah kamu pesan di Purbalingga Smart City.</p>
+                    </div>
+                </div>
+                <div className="container page-body">
+                    <NotLoggedIn />
+                </div>
+            </div>
+        );
+    }
+
+    // ── Render: sudah login ────────────────────────────────────
     return (
         <div className="page-riwayat" style={{ background: 'var(--cream)', minHeight: '100vh' }}>
             <style>{RESPONSIVE_STYLE}</style>
@@ -960,22 +1045,23 @@ export default function RiwayatTiket() {
             {eTicketOrder && (
                 <ETicketModal
                     order={eTicketOrder}
+                    token={token}
                     onClose={() => setETicketOrder(null)}
                     onStatusChange={handleStatusChange}
                 />
             )}
-            {/* RatingModal — popup di tengah layar */}
             {ratingOrder && (
                 <RatingModal
                     order={ratingOrder}
+                    token={token}
                     onClose={() => setRatingOrder(null)}
                     onSubmitSuccess={handleRatingSuccess}
                 />
             )}
-            {/* ReviewToast — muncul otomatis dari bawah kiri */}
             {reviewToast && (
                 <ReviewToast
                     order={reviewToast}
+                    token={token}
                     onClose={handleReviewClose}
                     onSubmitSuccess={handleRatingSuccess}
                 />
