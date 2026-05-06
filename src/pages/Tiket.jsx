@@ -720,14 +720,14 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         const direct = payload.user_id || payload.userId || payload.userid || payload.customer_id || payload.customerId;
         if (direct) return String(direct).trim();
 
-        if (!payload.rawValue) return '';
+        if (!payload.rawValue) return ''; // ← sudah ada, tapi...
 
         try {
-            const parsed = JSON.parse(payload.rawValue);
-            const nested = parsed.user_id || parsed.userId || parsed.userid || parsed.customer_id || parsed.customerId;
+            const parsed = JSON.parse(String(payload.rawValue)); // ← pastikan di-cast ke string dulu
+            const nested = parsed?.user_id || parsed?.userId || parsed?.userid || parsed?.customer_id || parsed?.customerId;
             if (nested) return String(nested).trim();
         } catch {
-            const raw = String(payload.rawValue).trim();
+            const raw = String(payload.rawValue ?? '').trim(); // ← tambah ?? ''
             const match = raw.match(/(?:^|[&;\n])(?:user_id|userid|userId|customer_id|customerId)\s*[:=]\s*([^&;\n]+)/i);
             if (match?.[1]) return match[1].trim();
         }
