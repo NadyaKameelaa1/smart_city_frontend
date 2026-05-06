@@ -25,7 +25,9 @@ const getHargaByDate = (prices, dateStr) => {
     return found || prices[0];
 };
 
-const BASE_IMAGE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '') + '/storage/';
+const BASE_IMAGE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id')
+    .replace(/\/api\/?$/, '')
+    .replace(/\/$/, '') + '/storage/';
 const PAYMENT_APP_URL = (import.meta.env.VITE_PURBALINGGA_PAY_URL || 'https://smartpay.qode.my.id').replace(/\/$/, '');
 const PAYMENT_APP_ORIGIN = new URL(PAYMENT_APP_URL).origin;
 const PAYMENT_MESSAGE_TYPE = 'PURBALINGGA_PAY_QRIS_SUCCESS';
