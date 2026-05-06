@@ -40,14 +40,21 @@ const makePaymentSessionId = () => {
 
 const buildQrisPayload = ({ sessionId, wisata, qty, form, tanggal, total }) => JSON.stringify({
     paymentType: 'ticket_qris',
+    payment_type: 'ticket_qris',
     cardId: sessionId,
+    card_id: sessionId,
     sessionId,
+    session_id: sessionId,
     wisataId: wisata?.id,
     wisataName: wisata?.nama,
+    wisata_name: wisata?.nama,
     merchantName: 'Purbalingga Smart City',
+    merchant_name: 'Purbalingga Smart City',
     saldo: total,
     nominal: total,
+    amount: total,
     description: `Pembayaran tiket ${wisata?.nama || 'wisata'} untuk ${form.nama}`,
+    title: `Pembayaran tiket ${wisata?.nama || 'wisata'}`,
     customerName: form.nama,
     customerPhone: form.hp,
     travelDate: tanggal,
@@ -722,13 +729,15 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             if (!payload || payload.type !== PAYMENT_MESSAGE_TYPE) return;
             if (handlingSuccessRef.current) return;
 
-            let sessionId = payload.sessionId || '';
+            let sessionId = payload.sessionId || payload.cardId || '';
             if (!sessionId && payload.rawValue) {
                 try {
                     const parsed = JSON.parse(payload.rawValue);
-                    sessionId = parsed.sessionId || '';
+                    sessionId = parsed.sessionId || parsed.cardId || parsed.session_id || parsed.card_id || '';
                 } catch {
-                    sessionId = '';
+                    const raw = String(payload.rawValue).trim();
+                    const match = raw.match(/(?:^|[&;\n])(?:session_id|sessionid|card_id|cardid|sessionId|cardId)\s*[:=]\s*([^&;\n]+)/i);
+                    sessionId = match ? match[1].trim() : '';
                 }
             }
 
