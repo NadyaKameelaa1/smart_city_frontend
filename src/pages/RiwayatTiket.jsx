@@ -5,8 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { getStoredSsoSession, rememberReturnTo, listenSsoSessionChange } from '../lib/ssoSession';
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
-
+const BASE_URL = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id')
+    .replace(/\/api\/?$/, '')
+    .replace(/\/$/, '');
 const getThumbUrl = (thumbnail) => {
     if (!thumbnail) return null;
     if (thumbnail.startsWith('http')) return thumbnail;
