@@ -1203,6 +1203,28 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                                     >
                                         Tutup
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setQrisOpen(false);
+                                            resetPaymentState();
+                                            onNext(); // langsung ke step 4
+                                        }}
+                                        style={{
+                                            marginTop: 12,
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: 10,
+                                            border: '2px dashed #f59e0b',
+                                            background: 'rgba(245,158,11,.08)',
+                                            color: '#d97706',
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        🧪 [DEV] Simulasi Pembayaran Berhasil
+                                    </button>
                                 </div>
 
                                 <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>

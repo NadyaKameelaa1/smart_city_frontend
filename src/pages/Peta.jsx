@@ -24,7 +24,9 @@ const WISATA_GROUP = { id: 'wisata-group', nama: 'Destinasi Wisata' };
 const thumbUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('http')) return path;
-    const base = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id').replace(/\/$/, '');
+    const base = (import.meta.env.VITE_API_URL || 'https://apismartcity.qode.my.id')
+        .replace(/\/api\/?$/, '')  // ← hapus /api di akhir
+        .replace(/\/$/, '');
     return `${base}/storage/${path}`;
 };
 
