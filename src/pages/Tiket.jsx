@@ -843,8 +843,8 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
             {/* ── Modal QR ── */}
             {qrisOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.58)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 20 }}>
-                    <div style={{ width: 'min(620px, 100%)', background: 'white', borderRadius: 24, boxShadow: '0 24px 60px rgba(15,23,42,.25)', overflow: 'hidden' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.58)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+                    <div style={{ width: 'min(620px, 100%)', maxHeight: '90vh', background: 'white', borderRadius: 24, boxShadow: '0 24px 60px rgba(15,23,42,.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         {/* Header modal */}
                         <div style={{ padding: '20px 22px', background: 'linear-gradient(135deg, var(--teal-700), var(--teal-900))', color: 'white', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                             <div>
@@ -856,14 +856,14 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                             </button>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 0 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 0, overflowY: 'auto', flex: 1 }}>
                             {/* Kiri: QR */}
                             <div style={{ padding: 24, borderRight: '1px solid var(--border)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
                                     <div style={{ padding: 16, borderRadius: 20, background: 'white', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
                                         {qrisPayload
-                                            ? <QRCodeCanvas value={qrisPayload} size={240} level="M" includeMargin style={{ display: 'block' }} />
-                                            : <div style={{ width: 240, height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>QR belum siap</div>
+                                            ? <QRCodeCanvas value={qrisPayload} size={180} level="M" includeMargin style={{ display: 'block' }} />
+                                            : <div style={{ width: 180, height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>QR belum siap</div>
                                         }
                                     </div>
                                 </div>
