@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useParams, Link } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '../api/axios';
+import { getStoredSsoSession } from '../lib/ssoSession';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const formatRupiah = (n) => {
@@ -56,32 +57,33 @@ const makePaymentSessionId = () => {
 // normalizeKey() di SmartPay (qrPaymentPayload.js).
 // Hindari key "title" karena SmartPay memetakannya ke merchantName
 // sehingga bisa menimpa nilai merchantName yang benar.
+// SESUDAH — sesuai dengan assignField SmartPay
 const buildQrisPayload = ({ sessionId, wisata, qty, form, tanggal, total }) => JSON.stringify({
-    // ── identitas sesi (cardId / sessionId) ──────────────────
-    card_id:    sessionId,   // normalizeKey → "card_id"   ✓ dikenali
-    session_id: sessionId,   // normalizeKey → "session_id" ✓ dikenali (prioritas)
+    // cardId & sessionId — SmartPay assignField mengenali kedua key ini
+    card_id:    sessionId,
+    session_id: sessionId,
 
-    // ── nominal ──────────────────────────────────────────────
-    nominal: total,          // normalizeKey → "nominal"   ✓ dikenali
-    amount:  total,          // normalizeKey → "amount"    ✓ fallback
+    // nominal — wajib ada, harus angka murni (bukan string)
+    nominal: Number(total),
+    amount:  Number(total),
 
-    // ── merchant ─────────────────────────────────────────────
-    merchant_name: 'Purbalingga Smart City', // normalizeKey → "merchant_name" ✓ dikenali
+    // merchantName — SmartPay kenali "merchant_name"
+    merchant_name: 'Purbalingga Smart City',
 
-    // ── wisata ───────────────────────────────────────────────
-    wisata_name: wisata?.nama,  // normalizeKey → "wisata_name" ✓ dikenali
+    // wisataName — SmartPay kenali "wisata_name"
+    wisata_name: wisata?.nama || '',
 
-    // ── deskripsi ────────────────────────────────────────────
+    // description
     description: `Pembayaran tiket ${wisata?.nama || 'wisata'} untuk ${form.nama}`,
 
-    // ── data tambahan (tidak diparse SmartPay tapi tetap ada di rawValue) ──
-    payment_type:  'ticket_qris',
-    wisata_id:     wisata?.id,
-    customer_name: form.nama,
+    // field tambahan (tidak diparse SmartPay tapi aman di rawValue)
+    payment_type:   'ticket_qris',
+    wisata_id:      wisata?.id,
+    customer_name:  form.nama,
     customer_phone: form.hp,
-    travel_date:   tanggal,
-    adult_qty:     qty.dewasa,
-    child_qty:     qty.anak,
+    travel_date:    tanggal,
+    adult_qty:      qty.dewasa,
+    child_qty:      qty.anak,
 });
 
 // ─── CSS ─────────────────────────────────────────────────────
@@ -590,12 +592,20 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         popup.focus();
         setOpeningApp(false);
     };
+    const getUserToken = () => {
+        const session = getStoredSsoSession();
+        return session?.token
+            || localStorage.getItem('token')
+            || localStorage.getItem('auth_token')
+            || localStorage.getItem('admin_token')
+            || localStorage.getItem('superadmin_token');
+    };
 
-    const getUserToken = () =>
-        localStorage.getItem('token')
-        || localStorage.getItem('auth_token')
-        || localStorage.getItem('admin_token')
-        || localStorage.getItem('superadmin_token');
+    // const getUserToken = () =>
+    //     localStorage.getItem('token')
+    //     || localStorage.getItem('auth_token')
+    //     || localStorage.getItem('admin_token')
+    //     || localStorage.getItem('superadmin_token');
 
     const handlePayment = async () => {
         const token = getUserToken();
