@@ -44,6 +44,7 @@ const PAYMENT_MESSAGE_TYPES = [
     'qris_success',
     'payment_success',
 ];
+const PAYMENT_SCAN_MESSAGE_TYPE = 'PURBALINGGA_PAY_QRIS_SCANNED';
 
 const makePaymentSessionId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -705,11 +706,13 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             const payload = event.data;
             if (!payload || typeof payload !== 'object') return;
 
-            // Terima berbagai tipe pesan sukses dari SmartPay
+            // Terima berbagai tipe pesan sukses atau scan dari SmartPay
             const isValidType =
                 !payload.type ||
+                String(payload.type).toUpperCase() === PAYMENT_SCAN_MESSAGE_TYPE ||
                 PAYMENT_MESSAGE_TYPES.includes(payload.type) ||
                 String(payload.type).toLowerCase().includes('success') ||
+                String(payload.type).toLowerCase().includes('scan') ||
                 String(payload.type).toLowerCase().includes('payment');
 
             if (!isValidType) {
@@ -751,6 +754,21 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             // Jika SmartPay tidak kirim sessionId sama sekali, tetap lanjut
             if (incomingSessionId && incomingSessionId !== qrisSessionId) {
                 console.error('[PAYMENT] Session mismatch, abaikan.');
+                return;
+            }
+
+            const isScanMessage = String(payload.type).toUpperCase() === PAYMENT_SCAN_MESSAGE_TYPE;
+
+            if (isScanMessage) {
+                console.log('[PAYMENT] ✅ QR terdeteksi di SmartPay, lanjut ke halaman selesai.');
+                handlingScanRef.current = true;
+                setDetectedPayload(payload);
+                setPaymentStatus('detected');
+                setPaymentMessage('QR berhasil dipindai di SmartPay. Melanjutkan ke halaman selesai...');
+                setPaymentError('');
+                setQrisOpen(false);
+                setConfirmOpen(false);
+                onNext();
                 return;
             }
 
