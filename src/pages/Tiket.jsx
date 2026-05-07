@@ -907,53 +907,25 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                                     <button
                                         type="button"
                                         onClick={async () => {
-                                            // Ambil token dari SSO session dulu, fallback ke localStorage
-                                            const ssoSession = (() => {
-                                                try {
-                                                    const raw = localStorage.getItem('sso_session') 
-                                                        || sessionStorage.getItem('sso_session');
-                                                    return raw ? JSON.parse(raw) : null;
-                                                } catch { return null; }
-                                            })();
-                                            
-                                            const token = ssoSession?.token
-                                                || localStorage.getItem('token')
+                                            const token = localStorage.getItem('token')
                                                 || localStorage.getItem('auth_token')
                                                 || localStorage.getItem('sso_token');
-
-                                            if (!token) {
-                                                alert('Kamu belum login. Silakan login terlebih dahulu.');
-                                                return;
-                                            }
-
+                                            
                                             try {
-                                                await api.post(
-                                                    '/tiket',
-                                                    {
-                                                        wisata_id:          wisata.id,
-                                                        tanggal_kunjungan:  tanggal,
-                                                        jumlah_dewasa:      qty.dewasa,
-                                                        jumlah_anak:        qty.anak,
-                                                        total_harga:        totalPrice,
-                                                        metode_pembayaran:  'QRIS',
-                                                    },
-                                                    { headers: { Authorization: `Bearer ${token}` } },
-                                                );
-
+                                                await api.post('/tiket', {
+                                                    wisata_id: wisata.id,
+                                                    tanggal_kunjungan: tanggal,
+                                                    jumlah_dewasa: qty.dewasa,
+                                                    jumlah_anak: qty.anak,
+                                                    total_harga: totalPrice,
+                                                    metode_pembayaran: 'QRIS',
+                                                }, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+                                                
                                                 setQrisOpen(false);
                                                 resetPaymentState();
                                                 onNext();
                                             } catch (err) {
-                                                const msg = err?.response?.data?.message || err?.message || 'Terjadi kesalahan.';
-                                                const status = err?.response?.status;
-                                                
-                                                if (status === 401) {
-                                                    alert('Sesi login habis. Silakan login ulang.');
-                                                } else if (status === 422) {
-                                                    alert('Data tidak valid: ' + msg);
-                                                } else {
-                                                    alert('Gagal simpan tiket: ' + msg);
-                                                }
+                                                alert('Gagal simpan tiket: ' + (err?.response?.data?.message || err?.message));
                                             }
                                         }}
                                         style={{
