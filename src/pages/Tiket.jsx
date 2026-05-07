@@ -48,23 +48,40 @@ const makePaymentSessionId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
     }
-
     return `qris-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+// ─── QR Payload ───────────────────────────────────────────────
+// PENTING: gunakan snake_case untuk semua key agar cocok dengan
+// normalizeKey() di SmartPay (qrPaymentPayload.js).
+// Hindari key "title" karena SmartPay memetakannya ke merchantName
+// sehingga bisa menimpa nilai merchantName yang benar.
 const buildQrisPayload = ({ sessionId, wisata, qty, form, tanggal, total }) => JSON.stringify({
-    sessionId,
-    session_id: sessionId,
-    cardId: sessionId,
-    paymentType: 'ticket_qris',
-    wisataId: wisata?.id,
-    nominal: total,
-    amount: total,
-    customerName: form.nama,
-    customerPhone: form.hp,
-    travelDate: tanggal,
-    adultQty: qty.dewasa,
-    childQty: qty.anak,
+    // ── identitas sesi (cardId / sessionId) ──────────────────
+    card_id:    sessionId,   // normalizeKey → "card_id"   ✓ dikenali
+    session_id: sessionId,   // normalizeKey → "session_id" ✓ dikenali (prioritas)
+
+    // ── nominal ──────────────────────────────────────────────
+    nominal: total,          // normalizeKey → "nominal"   ✓ dikenali
+    amount:  total,          // normalizeKey → "amount"    ✓ fallback
+
+    // ── merchant ─────────────────────────────────────────────
+    merchant_name: 'Purbalingga Smart City', // normalizeKey → "merchant_name" ✓ dikenali
+
+    // ── wisata ───────────────────────────────────────────────
+    wisata_name: wisata?.nama,  // normalizeKey → "wisata_name" ✓ dikenali
+
+    // ── deskripsi ────────────────────────────────────────────
+    description: `Pembayaran tiket ${wisata?.nama || 'wisata'} untuk ${form.nama}`,
+
+    // ── data tambahan (tidak diparse SmartPay tapi tetap ada di rawValue) ──
+    payment_type:  'ticket_qris',
+    wisata_id:     wisata?.id,
+    customer_name: form.nama,
+    customer_phone: form.hp,
+    travel_date:   tanggal,
+    adult_qty:     qty.dewasa,
+    child_qty:     qty.anak,
 });
 
 // ─── CSS ─────────────────────────────────────────────────────
@@ -128,11 +145,9 @@ const STYLE = `
         grid-template-columns: 1fr;
         gap: 24px;
     }
-    /* Sembunyikan sidebar kanan di mobile */
     .tiket-sidebar {
         display: none;
     }
-    /* Tampilkan order summary inline di atas form */
     .order-summary-inline {
         display: block;
         margin-bottom: 0;
@@ -149,7 +164,6 @@ const STYLE = `
     }
 }
 
-/* Step indicator responsive */
 .step-indicator-wrap {
     display: flex;
     align-items: center;
@@ -245,7 +259,6 @@ function StepIndicator({ current }) {
 }
 
 // ─── Order Summary ────────────────────────────────────────────
-// compact=true → versi ringkas untuk inline mobile
 function OrderSummary({ wisata, qty, tanggal, compact = false }) {
     if (!wisata) return null;
 
@@ -257,7 +270,6 @@ function OrderSummary({ wisata, qty, tanggal, compact = false }) {
         : null;
 
     if (compact) {
-        // Versi ringkas untuk mobile — horizontal card, tanpa gambar besar
         return (
             <div style={{ background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', gap: 14, padding: '14px 16px', alignItems: 'center' }}>
@@ -281,7 +293,6 @@ function OrderSummary({ wisata, qty, tanggal, compact = false }) {
                         <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--teal-700)' }}>{formatRupiah(total)}</div>
                     </div>
                 </div>
-                {/* Rincian kecil */}
                 {(qty.dewasa > 0 || qty.anak > 0) && (
                     <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--teal-50)', display: 'flex', gap: 16, fontSize: 12, color: 'var(--teal-700)' }}>
                         {qty.dewasa > 0 && <span>Dewasa ×{qty.dewasa}: <strong>{formatRupiah(qty.dewasa * (harga.harga_dewasa || 0))}</strong></span>}
@@ -292,7 +303,6 @@ function OrderSummary({ wisata, qty, tanggal, compact = false }) {
         );
     }
 
-    // Versi lengkap untuk sidebar desktop
     return (
         <div style={{ background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', overflow: 'hidden', position: 'sticky', top: 100 }}>
             {thumb
@@ -423,254 +433,105 @@ function Step1({ wisata, qty, setQty, tanggal, setTanggal, onNext }) {
 
 // ─── Step 2: Data Pengunjung ──────────────────────────────────
 function Step2({ form, setForm, onNext, onBack, userProfile }) {
-  // state controlled untuk field wajib
-  const [nama, setNama] = useState(form.nama || userProfile?.nama || '');
-  const [hp, setHp] = useState(form.hp || userProfile?.no_hp || '');
-  const [email, setEmail] = useState(form.email || userProfile?.email || '');
-  const [kecamatanId, setKecamatanId] = useState(
-    form.kecamatan_id || userProfile?.kecamatan_id || ''
-  );
+    const [nama, setNama] = useState(form.nama || userProfile?.nama || '');
+    const [hp, setHp] = useState(form.hp || userProfile?.no_hp || '');
+    const [email, setEmail] = useState(form.email || userProfile?.email || '');
+    const [kecamatanId, setKecamatanId] = useState(form.kecamatan_id || userProfile?.kecamatan_id || '');
+    const [kecamatans, setKecamatans] = useState([]);
+    const [loadingKec, setLoadingKec] = useState(true);
+    const [errors, setErrors] = useState({});
 
-  const [kecamatans, setKecamatans] = useState([]);
-  const [loadingKec, setLoadingKec] = useState(true);
-  const [errors, setErrors] = useState({});
+    useEffect(() => {
+        if (userProfile) {
+            if (!nama) setNama(userProfile.name || '');
+            if (!hp) setHp(userProfile.no_hp || '');
+            if (!email) setEmail(userProfile.email || '');
+            if (!kecamatanId) setKecamatanId(userProfile.kecamatan_id || '');
+        }
+    }, [userProfile]);
 
-  useEffect(() => {
-    if (userProfile) {
-      if (!nama) setNama(userProfile.name || '');
-      if (!hp) setHp(userProfile.no_hp || '');
-      if (!email) setEmail(userProfile.email || '');
-      if (!kecamatanId) setKecamatanId(userProfile.kecamatan_id || '');
-    }
-  }, [userProfile]);
+    useEffect(() => {
+        api.get('/kecamatan')
+            .then((res) => setKecamatans(res.data?.data || res.data || []))
+            .catch(() => setKecamatans([]))
+            .finally(() => setLoadingKec(false));
+    }, []);
 
-  // ambil data kecamatan
-  useEffect(() => {
-    api
-      .get('/kecamatan')
-      .then((res) => setKecamatans(res.data?.data || res.data || []))
-      .catch(() => setKecamatans([]))
-      .finally(() => setLoadingKec(false));
-  }, []);
+    useEffect(() => {
+        const e = {};
+        if (!nama.trim()) e.nama = 'Nama wajib diisi';
+        if (!hp.trim()) {
+            e.hp = 'Nomor HP wajib diisi';
+        } else if (!/^0[0-9]{8,13}$/.test(hp.replace(/\s/g, ''))) {
+            e.hp = 'Format nomor HP tidak valid (contoh: 08xxxxxxxxxx)';
+        }
+        setErrors(e);
+    }, [nama, hp]);
 
-  // validasi real‑time saat nama / hp berubah
-  useEffect(() => {
-    const e = {};
-    if (!nama.trim()) e.nama = 'Nama wajib diisi';
-    if (!hp.trim()) {
-      e.hp = 'Nomor HP wajib diisi';
-    } else if (!/^0[0-9]{8,13}$/.test(hp.replace(/\s/g, ''))) {
-      e.hp = 'Format nomor HP tidak valid (contoh: 08xxxxxxxxxx)';
-    }
-    setErrors(e);
-  }, [nama, hp]);
+    const canNext = Object.keys(errors).length === 0;
 
-  // tombol hanya bisa diklik jika tidak ada error
-  const canNext = Object.keys(errors).length === 0;
+    const handleLanjut = () => {
+        if (!canNext) return;
+        setForm({ nama: nama.trim(), hp: hp.trim(), email: email.trim(), kecamatan_id: kecamatanId });
+        onNext();
+    };
 
-  const handleLanjut = () => {
-    if (!canNext) return;
-    setForm({
-      nama: nama.trim(),
-      hp: hp.trim(),
-      email: email.trim(),
-      kecamatan_id: kecamatanId,
-    });
-    onNext();
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* NAMA */}
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontWeight: 600,
-            fontSize: 14,
-            color: 'var(--text-dark)',
-            marginBottom: 6,
-          }}
-        >
-          <i className="fas fa-user" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
-          Nama Lengkap <span style={{ color: '#ef4444' }}>*</span>
-        </label>
-        <input
-          type="text"
-          placeholder="Masukkan nama lengkap Anda"
-          value={nama}
-          onChange={(e) => setNama(e.target.value)}
-          className={`tiket-input${errors.nama ? ' error' : ''}`}
-          autoComplete="name"
-        />
-        {errors.nama && (
-          <div style={{ fontSize: 12, color: '#ef4444', marginTop: 5 }}>
-            <i className="fas fa-exclamation-circle" /> {errors.nama}
-          </div>
-        )}
-      </div>
-
-      {/* NOMOR HP */}
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontWeight: 600,
-            fontSize: 14,
-            color: 'var(--text-dark)',
-            marginBottom: 6,
-          }}
-        >
-          <i className="fas fa-phone" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
-          Nomor HP / WA <span style={{ color: '#ef4444' }}>*</span>
-        </label>
-        <input
-          type="tel"
-          placeholder="08xxxxxxxxxx"
-          value={hp}
-          onChange={(e) => setHp(e.target.value)}
-          className={`tiket-input${errors.hp ? ' error' : ''}`}
-          autoComplete="tel"
-        />
-        {errors.hp ? (
-          <div style={{ fontSize: 12, color: '#ef4444', marginTop: 5 }}>
-            <i className="fas fa-exclamation-circle" /> {errors.hp}
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-            contoh: 08xxxxxxxxxx
-          </div>
-        )}
-      </div>
-
-      {/* EMAIL */}
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontWeight: 600,
-            fontSize: 14,
-            color: 'var(--text-dark)',
-            marginBottom: 6,
-          }}
-        >
-          <i className="fas fa-envelope" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
-          Email{' '}
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
-            (opsional)
-          </span>
-        </label>
-        <input
-          type="email"
-          placeholder="nama@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="tiket-input"
-          autoComplete="email"
-        />
-      </div>
-
-      {/* KECAMATAN */}
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontWeight: 600,
-            fontSize: 14,
-            color: 'var(--text-dark)',
-            marginBottom: 6,
-          }}
-        >
-          <i className="fas fa-map-marker-alt" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
-          Kecamatan Asal{' '}
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
-            (opsional)
-          </span>
-        </label>
-        <div style={{ position: 'relative' }}>
-          <select
-            value={kecamatanId}
-            onChange={(e) => setKecamatanId(e.target.value)}
-            className="tiket-select"
-            disabled={loadingKec}
-          >
-            <option value="">
-              {loadingKec ? 'Memuat kecamatan...' : '— Pilih Kecamatan —'}
-            </option>
-            {kecamatans.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.nama}
-              </option>
-            ))}
-          </select>
-          {loadingKec && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 44,
-                top: '50%',
-                transform: 'translateY(-50%)',
-              }}
-            >
-              <i
-                className="fas fa-spinner fa-spin"
-                style={{ color: 'var(--teal-500)', fontSize: 13 }}
-              />
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: 'var(--text-dark)', marginBottom: 6 }}>
+                    <i className="fas fa-user" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
+                    Nama Lengkap <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input type="text" placeholder="Masukkan nama lengkap Anda" value={nama} onChange={(e) => setNama(e.target.value)} className={`tiket-input${errors.nama ? ' error' : ''}`} autoComplete="name" />
+                {errors.nama && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 5 }}><i className="fas fa-exclamation-circle" /> {errors.nama}</div>}
             </div>
-          )}
+            <div>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: 'var(--text-dark)', marginBottom: 6 }}>
+                    <i className="fas fa-phone" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
+                    Nomor HP / WA <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input type="tel" placeholder="08xxxxxxxxxx" value={hp} onChange={(e) => setHp(e.target.value)} className={`tiket-input${errors.hp ? ' error' : ''}`} autoComplete="tel" />
+                {errors.hp
+                    ? <div style={{ fontSize: 12, color: '#ef4444', marginTop: 5 }}><i className="fas fa-exclamation-circle" /> {errors.hp}</div>
+                    : <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>contoh: 08xxxxxxxxxx</div>}
+            </div>
+            <div>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: 'var(--text-dark)', marginBottom: 6 }}>
+                    <i className="fas fa-envelope" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
+                    Email <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>(opsional)</span>
+                </label>
+                <input type="email" placeholder="nama@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="tiket-input" autoComplete="email" />
+            </div>
+            <div>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: 14, color: 'var(--text-dark)', marginBottom: 6 }}>
+                    <i className="fas fa-map-marker-alt" style={{ color: 'var(--teal-500)', marginRight: 6 }} />
+                    Kecamatan Asal <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>(opsional)</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                    <select value={kecamatanId} onChange={(e) => setKecamatanId(e.target.value)} className="tiket-select" disabled={loadingKec}>
+                        <option value="">{loadingKec ? 'Memuat kecamatan...' : '— Pilih Kecamatan —'}</option>
+                        {kecamatans.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                    </select>
+                    {loadingKec && <div style={{ position: 'absolute', right: 44, top: '50%', transform: 'translateY(-50%)' }}><i className="fas fa-spinner fa-spin" style={{ color: 'var(--teal-500)', fontSize: 13 }} /></div>}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Pilih kecamatan tempat tinggal Anda di Purbalingga</div>
+            </div>
+            {userProfile && (
+                <div style={{ padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12, color: '#15803d', display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <i className="fas fa-check-circle" /> Data diisi otomatis dari profil akun Anda. Ubah jika perlu.
+                </div>
+            )}
+            <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button onClick={onBack} className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', padding: '14px' }}>
+                    <i className="fas fa-arrow-left" /> Kembali
+                </button>
+                <button onClick={handleLanjut} disabled={!canNext} className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '14px', fontSize: 15, opacity: canNext ? 1 : 0.5, cursor: canNext ? 'pointer' : 'not-allowed' }}>
+                    Lanjut ke Pembayaran <i className="fas fa-arrow-right" />
+                </button>
+            </div>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-          Pilih kecamatan tempat tinggal Anda di Purbalingga
-        </div>
-      </div>
-
-      {/* info profil */}
-      {userProfile && (
-        <div
-          style={{
-            padding: '10px 14px',
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: 8,
-            fontSize: 12,
-            color: '#15803d',
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-          }}
-        >
-          <i className="fas fa-check-circle" /> Data diisi otomatis dari profil akun Anda. Ubah jika
-          perlu.
-        </div>
-      )}
-
-      {/* tombol aksi */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-        <button
-          onClick={onBack}
-          className="btn btn-outline"
-          style={{ flex: 1, justifyContent: 'center', padding: '14px' }}
-        >
-          <i className="fas fa-arrow-left" /> Kembali
-        </button>
-        <button
-          onClick={handleLanjut}
-          disabled={!canNext}
-          className="btn btn-primary"
-          style={{
-            flex: 2,
-            justifyContent: 'center',
-            padding: '14px',
-            fontSize: 15,
-            opacity: canNext ? 1 : 0.5,
-            cursor: canNext ? 'pointer' : 'not-allowed',
-          }}
-        >
-          Lanjut ke Pembayaran <i className="fas fa-arrow-right" />
-        </button>
-      </div>
-    </div>
-  );
+    );
 }
 
 // ─── Step 3: Pembayaran ───────────────────────────────────────
@@ -682,7 +543,6 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
     const [paymentError, setPaymentError] = useState('');
     const [openingApp, setOpeningApp] = useState(false);
     const [submittingOrder, setSubmittingOrder] = useState(false);
-    const [detectedUserId, setDetectedUserId] = useState('');
     const [detectedPayload, setDetectedPayload] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const handlingScanRef = useRef(false);
@@ -695,42 +555,13 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
     const qrisPayload = useMemo(() => {
         if (!qrisSessionId) return '';
-        return buildQrisPayload({
-            sessionId: qrisSessionId,
-            wisata,
-            qty,
-            form,
-            tanggal,
-            total: totalPrice,
-        });
+        return buildQrisPayload({ sessionId: qrisSessionId, wisata, qty, form, tanggal, total: totalPrice });
     }, [form, qrisSessionId, qty, tanggal, totalPrice, wisata]);
-
-    const extractUserIdFromPayload = useCallback((payload) => {
-        if (!payload) return '';
-
-        const direct = payload.user_id || payload.userId || payload.userid || payload.customer_id || payload.customerId;
-        if (direct) return String(direct).trim();
-
-        if (!payload.rawValue) return ''; // ← sudah ada, tapi...
-
-        try {
-            const parsed = JSON.parse(String(payload.rawValue)); // ← pastikan di-cast ke string dulu
-            const nested = parsed?.user_id || parsed?.userId || parsed?.userid || parsed?.customer_id || parsed?.customerId;
-            if (nested) return String(nested).trim();
-        } catch {
-            const raw = String(payload.rawValue ?? '').trim(); // ← tambah ?? ''
-            const match = raw.match(/(?:^|[&;\n])(?:user_id|userid|userId|customer_id|customerId)\s*[:=]\s*([^&;\n]+)/i);
-            if (match?.[1]) return match[1].trim();
-        }
-
-        return '';
-    }, []);
 
     const resetPaymentState = () => {
         setPaymentStatus('idle');
         setPaymentMessage('Klik metode QRIS untuk menampilkan kode pembayaran.');
         setPaymentError('');
-        setDetectedUserId('');
         setDetectedPayload(null);
         setConfirmOpen(false);
         handlingScanRef.current = false;
@@ -743,7 +574,6 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         setPaymentStatus('waiting');
         setPaymentError('');
         setPaymentMessage('Tunjukkan QR ini ke aplikasi Purbalingga Pay untuk dipindai.');
-        setDetectedUserId('');
         setDetectedPayload(null);
         setConfirmOpen(false);
         handlingScanRef.current = false;
@@ -751,15 +581,12 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
     const openPaymentApp = () => {
         setOpeningApp(true);
-
         const popup = window.open(`${PAYMENT_APP_URL}/qr?tab=qr`, '_blank', 'width=430,height=760');
-
         if (!popup) {
             setOpeningApp(false);
             setPaymentError('Popup diblokir browser. Izinkan popup lalu tekan tombol ini lagi.');
             return;
         }
-
         popup.focus();
         setOpeningApp(false);
     };
@@ -784,12 +611,14 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         setPaymentMessage('Memproses pembayaran tiket...');
 
         try {
+            // 1. Kurangi saldo di SmartPay
             const paymentRes = await api.post(
                 'https://apismartpay.qode.my.id/api/transactions',
                 {
                     type: 'payment',
                     amount: totalPrice,
-                    title: 'Bayar Tiket',
+                    title: `Tiket ${wisata?.nama || 'wisata'}`,
+                    description: `Pembayaran tiket ${wisata?.nama} - ${qty.dewasa} dewasa${qty.anak > 0 ? `, ${qty.anak} anak` : ''}`,
                 },
                 {
                     headers: {
@@ -804,17 +633,16 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                 throw new Error('Pembayaran gagal diproses.');
             }
 
+            // 2. Simpan tiket di SmartCity
             await api.post(
-                'https://apismartcity.qode.my.id/api/tiket',
-                {   
-                    user_id: detectedUserId || undefined,
-                    wisata_id: wisata.id,
-                    tanggal_kunjungan: tanggal,
-                    jumlah_dewasa: qty.dewasa,
-                    jumlah_anak: qty.anak,
-                    total_harga: totalPrice,
-                    metode_pembayaran: 'QRIS',
-                    qr_session_id: qrisSessionId || undefined,
+                '/tiket',
+                {
+                    wisata_id:          wisata.id,
+                    tanggal_kunjungan:  tanggal,
+                    jumlah_dewasa:      qty.dewasa,
+                    jumlah_anak:        qty.anak,
+                    total_harga:        totalPrice,
+                    metode_pembayaran:  'QRIS',
                 },
                 {
                     headers: {
@@ -831,11 +659,15 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             onNext();
         } catch (err) {
             const status = err?.response?.status;
+            const msg    = err?.response?.data?.message || err?.message || 'Gagal memproses pembayaran.';
+
             if (status === 422) {
-                alert('Saldo tidak cukup');
+                setPaymentError('Saldo tidak mencukupi. Silakan top up terlebih dahulu.');
+            } else {
+                setPaymentError(msg);
             }
+
             setPaymentStatus('error');
-            setPaymentError(err?.response?.data?.message || err?.message || 'Gagal memproses pembayaran.');
             setPaymentMessage('Pembayaran gagal diproses. Silakan coba lagi.');
             handlingScanRef.current = false;
         } finally {
@@ -843,14 +675,13 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
         }
     };
 
+    // ── Listener postMessage dari SmartPay ───────────────────
     useEffect(() => {
         if (!qrisSessionId) return undefined;
 
         const handleMessage = (event) => {
-            // ─── Debug log (bisa dihapus setelah stabil) ───
             console.log('[PAYMENT] Pesan masuk:', event.origin, event.data);
 
-            // Terima dari PAYMENT_APP_ORIGIN ATAU dari origin yang mengandung domain smartpay
             const isValidOrigin =
                 event.origin === PAYMENT_APP_ORIGIN ||
                 event.origin.includes('smartpay.qode.my.id') ||
@@ -862,11 +693,11 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
             }
 
             const payload = event.data;
-            if (!payload) return;
+            if (!payload || typeof payload !== 'object') return;
 
-            // Terima berbagai tipe pesan dari SmartPay
+            // Terima berbagai tipe pesan sukses dari SmartPay
             const isValidType =
-                !payload.type || // tidak ada type = langsung proses
+                !payload.type ||
                 PAYMENT_MESSAGE_TYPES.includes(payload.type) ||
                 String(payload.type).toLowerCase().includes('success') ||
                 String(payload.type).toLowerCase().includes('payment');
@@ -878,50 +709,47 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
             if (handlingScanRef.current) return;
 
-            // ─── Ekstrak sessionId dari payload ───
-            let sessionId =
-                payload.sessionId ||
-                payload.session_id ||
-                payload.cardId ||
-                payload.card_id ||
+            // Ekstrak sessionId dari payload
+            let incomingSessionId =
+                payload.sessionId   ||
+                payload.session_id  ||
+                payload.cardId      ||
+                payload.card_id     ||
                 '';
 
-            if (!sessionId && payload.rawValue) {
+            // Coba parse dari rawValue jika session tidak ada di root
+            if (!incomingSessionId && payload.rawValue) {
                 try {
-                    const parsed = JSON.parse(payload.rawValue);
-                    sessionId =
-                        parsed.sessionId ||
-                        parsed.session_id ||
-                        parsed.cardId ||
-                        parsed.card_id ||
+                    const parsed = JSON.parse(String(payload.rawValue));
+                    incomingSessionId =
+                        parsed.session_id  ||
+                        parsed.sessionId   ||
+                        parsed.card_id     ||
+                        parsed.cardId      ||
                         '';
                 } catch {
-                    const raw = String(payload.rawValue).trim();
-                    const match = raw.match(
-                        /(?:^|[&;\n])(?:session_id|sessionid|card_id|cardid|sessionId|cardId)\s*[:=]\s*([^&;\n]+)/i,
-                    );
-                    sessionId = match ? match[1].trim() : '';
+                    const raw   = String(payload.rawValue).trim();
+                    const match = raw.match(/(?:session_id|card_id|sessionId|cardId)\s*[":]?\s*["']?([a-zA-Z0-9\-_]+)/i);
+                    incomingSessionId = match?.[1] ?? '';
                 }
             }
 
-            console.log('[PAYMENT] sessionId dari payload:', sessionId);
-            console.log('[PAYMENT] sessionId yang diharapkan:', qrisSessionId);
+            console.log('[PAYMENT] sessionId masuk:', incomingSessionId);
+            console.log('[PAYMENT] sessionId diharapkan:', qrisSessionId);
 
-            // Cocokkan sessionId — jika SmartPay tidak kirim sessionId sama sekali,
-            // tetap lanjutkan (berarti SmartPay tidak mengembalikan session info)
-            if (sessionId && sessionId !== qrisSessionId) {
+            // Jika SmartPay kirim sessionId, harus cocok
+            // Jika SmartPay tidak kirim sessionId sama sekali, tetap lanjut
+            if (incomingSessionId && incomingSessionId !== qrisSessionId) {
                 console.error('[PAYMENT] Session mismatch, abaikan.');
                 return;
             }
 
-            console.log('[PAYMENT] ✅ Pembayaran terdeteksi!');
+            console.log('[PAYMENT] ✅ Pembayaran terdeteksi dari SmartPay!');
             handlingScanRef.current = true;
 
-            const userId = extractUserIdFromPayload(payload);
-            setDetectedUserId(userId);
             setDetectedPayload(payload);
             setPaymentStatus('detected');
-            setPaymentMessage('QR berhasil terdeteksi. Klik konfirmasi pemesanan untuk melanjutkan.');
+            setPaymentMessage('QR berhasil dipindai. Konfirmasi untuk menyelesaikan pemesanan.');
             setPaymentError('');
             setQrisOpen(false);
             setConfirmOpen(true);
@@ -929,22 +757,11 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
 
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, [extractUserIdFromPayload, qrisSessionId]);
-
-    useEffect(() => {
-        const debugAll = (e) => {
-            console.log('[DEBUG ALL MESSAGE]', {
-                origin: e.origin,
-                data: e.data,
-                source: e.source,
-            });
-        };
-        window.addEventListener('message', debugAll);
-        return () => window.removeEventListener('message', debugAll);
-    }, []);
+    }, [qrisSessionId]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Ringkasan */}
             <div style={{ padding: 20, background: 'var(--teal-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--teal-100)' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--teal-700)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Ringkasan Pemesanan</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -976,27 +793,13 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                     <span style={{ color: 'var(--teal-700)' }}>{formatRupiah(totalPrice)}</span>
                 </div>
             </div>
+
+            {/* Metode Pembayaran */}
             <div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-dark)', marginBottom: 12 }}>
                     <i className="fas fa-credit-card" style={{ color: 'var(--teal-500)', marginRight: 8 }} />Metode Pembayaran
                 </div>
-                <button
-                    type="button"
-                    onClick={openQrisPayment}
-                    style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 14,
-                        padding: '16px 20px',
-                        border: '2px solid var(--teal-500)',
-                        borderRadius: 'var(--radius-md)',
-                        cursor: 'pointer',
-                        background: 'linear-gradient(135deg, var(--teal-50), #ecfeff)',
-                        transition: 'all .15s',
-                        textAlign: 'left',
-                    }}
-                >
+                <button type="button" onClick={openQrisPayment} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', border: '2px solid var(--teal-500)', borderRadius: 'var(--radius-md)', cursor: 'pointer', background: 'linear-gradient(135deg, var(--teal-50), #ecfeff)', transition: 'all .15s', textAlign: 'left' }}>
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <i className="fas fa-qrcode" style={{ color: 'white', fontSize: 15 }} />
                     </div>
@@ -1012,214 +815,94 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                     <i className="fas fa-check-circle" style={{ color: 'var(--teal-500)', fontSize: 18, flexShrink: 0 }} />
                 </button>
                 <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                    Setelah QR dipindai, kamu akan diminta klik konfirmasi pemesanan sebelum pembayaran diproses.
+                    Setelah QR dipindai SmartPay, kamu akan diminta konfirmasi sebelum pembayaran diproses.
                 </div>
             </div>
+
+            {/* Tombol aksi */}
             <div style={{ display: 'flex', gap: 12 }}>
                 <button onClick={onBack} disabled={submittingOrder} className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', padding: '14px' }}>
                     <i className="fas fa-arrow-left" /> Kembali
                 </button>
                 <button onClick={openQrisPayment} disabled={submittingOrder} className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '14px', fontSize: 15 }}>
-                    {submittingOrder ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : <><i className="fas fa-qrcode" /> Buka QRIS {formatRupiah(totalPrice)}</>}
+                    {submittingOrder
+                        ? <><i className="fas fa-spinner fa-spin" /> Memproses...</>
+                        : <><i className="fas fa-qrcode" /> Buka QRIS {formatRupiah(totalPrice)}</>}
                 </button>
             </div>
 
+            {/* ── Modal QR ── */}
             {qrisOpen && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(15,23,42,.58)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 60,
-                    padding: 20,
-                }}>
-                    <div style={{
-                        width: 'min(620px, 100%)',
-                        background: 'white',
-                        borderRadius: 24,
-                        boxShadow: '0 24px 60px rgba(15,23,42,.25)',
-                        overflow: 'hidden',
-                    }}>
-                        <div style={{
-                            padding: '20px 22px',
-                            background: 'linear-gradient(135deg, var(--teal-700), var(--teal-900))',
-                            color: 'white',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: 12,
-                            alignItems: 'center',
-                        }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.58)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 20 }}>
+                    <div style={{ width: 'min(620px, 100%)', background: 'white', borderRadius: 24, boxShadow: '0 24px 60px rgba(15,23,42,.25)', overflow: 'hidden' }}>
+                        {/* Header modal */}
+                        <div style={{ padding: '20px 22px', background: 'linear-gradient(135deg, var(--teal-700), var(--teal-900))', color: 'white', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                             <div>
                                 <div style={{ fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', opacity: .8 }}>QRIS Payment</div>
                                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700 }}>Scan untuk bayar tiket</div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setQrisOpen(false);
-                                    resetPaymentState();
-                                }}
-                                style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: '50%',
-                                    border: 'none',
-                                    background: 'rgba(255,255,255,.15)',
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                }}
-                            >
+                            <button type="button" onClick={() => { setQrisOpen(false); resetPaymentState(); }} style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.15)', color: 'white', cursor: 'pointer' }}>
                                 <i className="fas fa-times" />
                             </button>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 0 }}>
+                            {/* Kiri: QR */}
                             <div style={{ padding: 24, borderRight: '1px solid var(--border)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
                                     <div style={{ padding: 16, borderRadius: 20, background: 'white', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
-                                        {qrisPayload ? (
-                                            <QRCodeCanvas
-                                                value={qrisPayload}
-                                                size={240}
-                                                level="M"
-                                                includeMargin
-                                                style={{ display: 'block' }}
-                                            />
-                                        ) : (
-                                            <div style={{
-                                                width: 240,
-                                                height: 240,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                color: 'var(--text-muted)',
-                                                fontSize: 13,
-                                                textAlign: 'center',
-                                            }}>
-                                                QR belum siap
-                                            </div>
-                                        )}
+                                        {qrisPayload
+                                            ? <QRCodeCanvas value={qrisPayload} size={240} level="M" includeMargin style={{ display: 'block' }} />
+                                            : <div style={{ width: 240, height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>QR belum siap</div>
+                                        }
                                     </div>
                                 </div>
-
                                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
-                                    <span style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--teal-50)', color: 'var(--teal-700)', fontSize: 12, fontWeight: 700 }}>
-                                        {formatRupiah(totalPrice)}
-                                    </span>
-                                    <span style={{ padding: '6px 10px', borderRadius: 999, background: '#f0fdf4', color: '#15803d', fontSize: 12, fontWeight: 700 }}>
-                                        {wisata?.nama}
-                                    </span>
+                                    <span style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--teal-50)', color: 'var(--teal-700)', fontSize: 12, fontWeight: 700 }}>{formatRupiah(totalPrice)}</span>
+                                    <span style={{ padding: '6px 10px', borderRadius: 999, background: '#f0fdf4', color: '#15803d', fontSize: 12, fontWeight: 700 }}>{wisata?.nama}</span>
                                 </div>
-
                                 <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, textAlign: 'center' }}>
                                     Tunjukkan QR ini ke aplikasi <strong>Purbalingga Pay</strong>, lalu ikuti konfirmasi pembayaran di sana.
                                 </div>
-
                                 {paymentError && (
-                                    <div style={{
-                                        marginTop: 16,
-                                        padding: '12px 14px',
-                                        background: '#fef2f2',
-                                        border: '1px solid #fecaca',
-                                        borderRadius: 12,
-                                        color: '#b91c1c',
-                                        fontSize: 13,
-                                    }}>
+                                    <div style={{ marginTop: 16, padding: '12px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, color: '#b91c1c', fontSize: 13 }}>
                                         {paymentError}
                                     </div>
                                 )}
                             </div>
 
+                            {/* Kanan: langkah */}
                             <div style={{ padding: 24, background: '#f8fafc' }}>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
-                                    Langkah Pembayaran
-                                </div>
-
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Langkah Pembayaran</div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                     {[
-                                        'Klik tombol "Buka Purbalingga Pay" agar aplikasi payment terbuka dalam tab baru.',
-                                        'Di aplikasi payment, buka menu QR dan scan kode ini.',
-                                        'Konfirmasi nominal pembayaran yang muncul sesuai total tiket.',
-                                        'Setelah pembayaran sukses, halaman ini akan otomatis lanjut ke tahap selesai.',
+                                        'Klik "Buka Purbalingga Pay" agar aplikasi payment terbuka.',
+                                        'Di SmartPay, buka menu QR lalu scan kode ini.',
+                                        'Konfirmasi nominal yang muncul di SmartPay.',
+                                        'Setelah sukses, halaman ini otomatis lanjut ke tahap selesai.',
                                     ].map((text, index) => (
-                                        <div key={text} style={{
-                                            display: 'flex',
-                                            gap: 12,
-                                            padding: '12px 14px',
-                                            borderRadius: 14,
-                                            background: 'white',
-                                            border: '1px solid var(--border)',
-                                        }}>
-                                            <div style={{
-                                                width: 28,
-                                                height: 28,
-                                                borderRadius: '50%',
-                                                background: 'var(--teal-600)',
-                                                color: 'white',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                flexShrink: 0,
-                                                fontSize: 12,
-                                                fontWeight: 800,
-                                            }}>
-                                                {index + 1}
-                                            </div>
+                                        <div key={index} style={{ display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'white', border: '1px solid var(--border)' }}>
+                                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--teal-600)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 800 }}>{index + 1}</div>
                                             <div style={{ fontSize: 13, color: 'var(--text-dark)', lineHeight: 1.6 }}>{text}</div>
                                         </div>
                                     ))}
                                 </div>
-
                                 <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                    <button
-                                        type="button"
-                                        onClick={openPaymentApp}
-                                        className="btn btn-primary"
-                                        style={{ flex: 1, justifyContent: 'center', minWidth: 200 }}
-                                        disabled={openingApp}
-                                    >
+                                    <button type="button" onClick={openPaymentApp} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', minWidth: 200 }} disabled={openingApp}>
                                         {openingApp ? <><i className="fas fa-spinner fa-spin" /> Membuka...</> : <><i className="fas fa-external-link-alt" /> Buka Purbalingga Pay</>}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setQrisOpen(false);
-                                            resetPaymentState();
-                                        }}
-                                        className="btn btn-outline"
-                                        style={{ flex: 1, justifyContent: 'center', minWidth: 160 }}
-                                        disabled={submittingOrder}
-                                    >
+                                    <button type="button" onClick={() => { setQrisOpen(false); resetPaymentState(); }} className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', minWidth: 160 }} disabled={submittingOrder}>
                                         Tutup
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setQrisOpen(false);
-                                            resetPaymentState();
-                                            onNext(); // langsung ke step 4
-                                        }}
-                                        style={{
-                                            marginTop: 12,
-                                            width: '100%',
-                                            padding: '10px',
-                                            borderRadius: 10,
-                                            border: '2px dashed #f59e0b',
-                                            background: 'rgba(245,158,11,.08)',
-                                            color: '#d97706',
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                        }}
-                                    >
-                                        🧪 [DEV] Simulasi Pembayaran Berhasil
-                                    </button>
                                 </div>
-
                                 <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                                    Status: <strong>{paymentStatus === 'waiting' ? 'Menunggu scan' : paymentStatus === 'detected' ? 'QR Terdeteksi' : paymentStatus === 'processing' ? 'Memproses' : paymentStatus === 'success' ? 'Berhasil' : paymentStatus === 'error' ? 'Gagal' : 'Siap'}</strong>
+                                    Status: <strong>
+                                        {paymentStatus === 'waiting'  ? 'Menunggu scan'  :
+                                         paymentStatus === 'detected' ? 'QR Terdeteksi'  :
+                                         paymentStatus === 'processing' ? 'Memproses'    :
+                                         paymentStatus === 'success'  ? 'Berhasil'       :
+                                         paymentStatus === 'error'    ? 'Gagal'          : 'Siap'}
+                                    </strong>
                                     <div style={{ marginTop: 4 }}>{paymentMessage}</div>
                                 </div>
                             </div>
@@ -1228,67 +911,57 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                 </div>
             )}
 
+            {/* ── Modal Konfirmasi (muncul setelah SmartPay kirim postMessage) ── */}
             {confirmOpen && detectedPayload && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(15,23,42,.58)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 70,
-                    padding: 20,
-                }}>
-                    <div style={{
-                        width: 'min(460px, 100%)',
-                        background: 'white',
-                        borderRadius: 18,
-                        border: '1px solid var(--border)',
-                        boxShadow: '0 24px 60px rgba(15,23,42,.25)',
-                        padding: 22,
-                    }}>
-                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>
-                            Konfirmasi Pemesanan
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.58)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 20 }}>
+                    <div style={{ width: 'min(460px, 100%)', background: 'white', borderRadius: 18, border: '1px solid var(--border)', boxShadow: '0 24px 60px rgba(15,23,42,.25)', padding: 28 }}>
+                        {/* Icon sukses scan */}
+                        <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f0fdf4', border: '2px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                            <i className="fas fa-qrcode" style={{ fontSize: 22, color: '#16a34a' }} />
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 14 }}>
-                            QR berhasil terdeteksi{detectedUserId ? ` untuk user #${detectedUserId}` : ''}. Klik konfirmasi untuk memproses pembayaran dan menyimpan pesanan tiket.
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--dark)', marginBottom: 6, textAlign: 'center' }}>
+                            QR Berhasil Dipindai
                         </div>
-                        <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: '#f8fafc', marginBottom: 16 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 20, textAlign: 'center' }}>
+                            SmartPay telah membaca QR tiket. Klik <strong>Konfirmasi Pembayaran</strong> untuk memproses pengurangan saldo dan menyimpan tiket.
+                        </div>
+
+                        {/* Rincian */}
+                        <div style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--border)', background: '#f8fafc', marginBottom: 20 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Wisata</span>
+                                <strong style={{ color: 'var(--dark)' }}>{wisata?.nama}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Tanggal</span>
+                                <strong style={{ color: 'var(--dark)' }}>{tglFormatted}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Tiket</span>
+                                <strong style={{ color: 'var(--dark)' }}>
+                                    {[qty.dewasa > 0 && `${qty.dewasa} Dewasa`, qty.anak > 0 && `${qty.anak} Anak`].filter(Boolean).join(', ')}
+                                </strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 800, paddingTop: 10, borderTop: '1px solid var(--border)', marginTop: 4 }}>
                                 <span>Total</span>
-                                <strong>{formatRupiah(totalPrice)}</strong>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-muted)' }}>
-                                <span>Metode</span>
-                                <span>QRIS</span>
+                                <span style={{ color: 'var(--teal-700)' }}>{formatRupiah(totalPrice)}</span>
                             </div>
                         </div>
+
                         {paymentError && (
-                            <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', fontSize: 13 }}>
-                                {paymentError}
+                            <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', fontSize: 13 }}>
+                                <i className="fas fa-exclamation-circle" style={{ marginRight: 6 }} />{paymentError}
                             </div>
                         )}
+
                         <div style={{ display: 'flex', gap: 10 }}>
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                style={{ flex: 1, justifyContent: 'center' }}
-                                onClick={() => {
-                                    setConfirmOpen(false);
-                                    handlingScanRef.current = false;
-                                }}
-                                disabled={submittingOrder}
-                            >
+                            <button type="button" className="btn btn-outline" style={{ flex: 1, justifyContent: 'center' }} onClick={() => { setConfirmOpen(false); handlingScanRef.current = false; }} disabled={submittingOrder}>
                                 Batal
                             </button>
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                style={{ flex: 1, justifyContent: 'center' }}
-                                onClick={handlePayment}
-                                disabled={submittingOrder}
-                            >
-                                {submittingOrder ? <><i className="fas fa-spinner fa-spin" /> Memproses...</> : 'Konfirmasi Pemesanan'}
+                            <button type="button" className="btn btn-primary" style={{ flex: 2, justifyContent: 'center' }} onClick={handlePayment} disabled={submittingOrder}>
+                                {submittingOrder
+                                    ? <><i className="fas fa-spinner fa-spin" /> Memproses...</>
+                                    : <><i className="fas fa-check" /> Konfirmasi Pembayaran</>}
                             </button>
                         </div>
                     </div>
@@ -1397,32 +1070,19 @@ export default function Tiket() {
             setLoading(true);
             setNotFound(false);
             try {
-                // Detail wisata by slug (kompatibel juga jika legacy value masih di query id)
-                const wisataRes = await api.get(`/wisata/${encodeURIComponent(wisataSlug)}`);
+                const wisataRes  = await api.get(`/wisata/${encodeURIComponent(wisataSlug)}`);
                 const wisataData = wisataRes.data?.data || null;
                 setWisata(wisataData);
-
-                if (!wisataData) {
-                    setNotFound(true);
-                    setLoading(false);
-                    return;
-                }
+                if (!wisataData) { setNotFound(true); setLoading(false); return; }
             } catch {
-                setWisata(null);
-                setNotFound(true);
-                setLoading(false);
-                return;
+                setWisata(null); setNotFound(true); setLoading(false); return;
             }
-
-            // Fetch profil user — opsional, jangan crash kalau belum login / 404
             try {
                 const profileRes = await api.get('/auth/me');
                 setUserProfile(profileRes.data?.user || profileRes.data || null);
             } catch {
-                // Belum login atau endpoint tidak tersedia — biarkan null
                 setUserProfile(null);
             }
-
             setLoading(false);
         };
 
@@ -1457,7 +1117,6 @@ export default function Tiket() {
         <div style={{ paddingTop: 90, paddingBottom: 80, background: 'var(--cream)', minHeight: '100vh' }}>
             <style>{STYLE}</style>
 
-            {/* Header */}
             <div style={{ background: 'linear-gradient(135deg, var(--teal-800), var(--teal-950))', padding: '40px 0 36px' }}>
                 <div className="container" style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 12, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--teal-300)', fontWeight: 600, marginBottom: 8 }}>
@@ -1472,19 +1131,13 @@ export default function Tiket() {
 
             <div className="container" style={{ paddingTop: 40 }}>
                 <StepIndicator current={step} />
-
                 <div className="tiket-body">
-                    {/* Kolom kiri: ringkasan mobile + form */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-                        {/* Order summary ringkas — hanya muncul di mobile (≤900px), kecuali step 4 */}
                         {step < 4 && (
                             <div className="order-summary-inline">
                                 <OrderSummary wisata={wisata} qty={qty} tanggal={tanggal} compact />
                             </div>
                         )}
-
-                        {/* Form card */}
                         <div className="tiket-form-card">
                             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(18px,3vw,22px)', color: 'var(--dark)', marginBottom: 28, paddingBottom: 20, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 10, background: step === 4 ? '#16a34a' : 'var(--teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1492,15 +1145,12 @@ export default function Tiket() {
                                 </div>
                                 {STEPS[step - 1].label}
                             </h2>
-
                             {step === 1 && <Step1 wisata={wisata} qty={qty} setQty={setQty} tanggal={tanggal} setTanggal={setTanggal} onNext={() => setStep(2)} />}
                             {step === 2 && <Step2 form={form} setForm={setForm} onNext={() => setStep(3)} onBack={() => setStep(1)} userProfile={userProfile} />}
                             {step === 3 && <Step3 wisata={wisata} qty={qty} form={form} tanggal={tanggal} onNext={() => setStep(4)} onBack={() => setStep(2)} />}
                             {step === 4 && <Step4 wisata={wisata} qty={qty} form={form} tanggal={tanggal} />}
                         </div>
                     </div>
-
-                    {/* Sidebar desktop (>900px) */}
                     <div className="tiket-sidebar">
                         {step < 4 && <OrderSummary wisata={wisata} qty={qty} tanggal={tanggal} />}
                         {step === 4 && (
