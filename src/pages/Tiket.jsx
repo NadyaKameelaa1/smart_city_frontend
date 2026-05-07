@@ -904,56 +904,73 @@ function Step3({ wisata, qty, form, tanggal, onNext, onBack }) {
                                     <button type="button" onClick={() => { setQrisOpen(false); resetPaymentState(); }} className="btn btn-outline" style={{ flex: 1, justifyContent: 'center', minWidth: 160 }} disabled={submittingOrder}>
                                         Tutup
                                     </button>
-                                    onClick={async () => {
-                                        // Ambil token dari SSO session dulu, fallback ke localStorage
-                                        const ssoSession = (() => {
-                                            try {
-                                                const raw = localStorage.getItem('sso_session') 
-                                                    || sessionStorage.getItem('sso_session');
-                                                return raw ? JSON.parse(raw) : null;
-                                            } catch { return null; }
-                                        })();
-                                        
-                                        const token = ssoSession?.token
-                                            || localStorage.getItem('token')
-                                            || localStorage.getItem('auth_token')
-                                            || localStorage.getItem('sso_token');
-
-                                        if (!token) {
-                                            alert('Kamu belum login. Silakan login terlebih dahulu.');
-                                            return;
-                                        }
-
-                                        try {
-                                            await api.post(
-                                                '/tiket',
-                                                {
-                                                    wisata_id:          wisata.id,
-                                                    tanggal_kunjungan:  tanggal,
-                                                    jumlah_dewasa:      qty.dewasa,
-                                                    jumlah_anak:        qty.anak,
-                                                    total_harga:        totalPrice,
-                                                    metode_pembayaran:  'QRIS',
-                                                },
-                                                { headers: { Authorization: `Bearer ${token}` } },
-                                            );
-
-                                            setQrisOpen(false);
-                                            resetPaymentState();
-                                            onNext();
-                                        } catch (err) {
-                                            const msg = err?.response?.data?.message || err?.message || 'Terjadi kesalahan.';
-                                            const status = err?.response?.status;
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            // Ambil token dari SSO session dulu, fallback ke localStorage
+                                            const ssoSession = (() => {
+                                                try {
+                                                    const raw = localStorage.getItem('sso_session') 
+                                                        || sessionStorage.getItem('sso_session');
+                                                    return raw ? JSON.parse(raw) : null;
+                                                } catch { return null; }
+                                            })();
                                             
-                                            if (status === 401) {
-                                                alert('Sesi login habis. Silakan login ulang.');
-                                            } else if (status === 422) {
-                                                alert('Data tidak valid: ' + msg);
-                                            } else {
-                                                alert('Gagal simpan tiket: ' + msg);
+                                            const token = ssoSession?.token
+                                                || localStorage.getItem('token')
+                                                || localStorage.getItem('auth_token')
+                                                || localStorage.getItem('sso_token');
+
+                                            if (!token) {
+                                                alert('Kamu belum login. Silakan login terlebih dahulu.');
+                                                return;
                                             }
-                                        }
-                                    }}
+
+                                            try {
+                                                await api.post(
+                                                    '/tiket',
+                                                    {
+                                                        wisata_id:          wisata.id,
+                                                        tanggal_kunjungan:  tanggal,
+                                                        jumlah_dewasa:      qty.dewasa,
+                                                        jumlah_anak:        qty.anak,
+                                                        total_harga:        totalPrice,
+                                                        metode_pembayaran:  'QRIS',
+                                                    },
+                                                    { headers: { Authorization: `Bearer ${token}` } },
+                                                );
+
+                                                setQrisOpen(false);
+                                                resetPaymentState();
+                                                onNext();
+                                            } catch (err) {
+                                                const msg = err?.response?.data?.message || err?.message || 'Terjadi kesalahan.';
+                                                const status = err?.response?.status;
+                                                
+                                                if (status === 401) {
+                                                    alert('Sesi login habis. Silakan login ulang.');
+                                                } else if (status === 422) {
+                                                    alert('Data tidak valid: ' + msg);
+                                                } else {
+                                                    alert('Gagal simpan tiket: ' + msg);
+                                                }
+                                            }
+                                        }}
+                                        style={{
+                                            marginTop: 12,
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: 10,
+                                            border: '2px dashed #f59e0b',
+                                            background: 'rgba(245,158,11,.08)',
+                                            color: '#d97706',
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        🧪 [DEV] Simulasi Pembayaran Berhasil
+                                    </button>
                                 </div>
                                 <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
                                     Status: <strong>
