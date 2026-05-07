@@ -53,22 +53,13 @@ const makePaymentSessionId = () => {
 };
 
 const buildQrisPayload = ({ sessionId, wisata, qty, form, tanggal, total }) => JSON.stringify({
-    paymentType: 'ticket_qris',
-    payment_type: 'ticket_qris',
-    cardId: sessionId,
-    card_id: sessionId,
     sessionId,
     session_id: sessionId,
+    cardId: sessionId,
+    paymentType: 'ticket_qris',
     wisataId: wisata?.id,
-    wisataName: wisata?.nama,
-    wisata_name: wisata?.nama,
-    merchantName: 'Purbalingga Smart City',
-    merchant_name: 'Purbalingga Smart City',
-    saldo: total,
     nominal: total,
     amount: total,
-    description: `Pembayaran tiket ${wisata?.nama || 'wisata'} untuk ${form.nama}`,
-    title: `Pembayaran tiket ${wisata?.nama || 'wisata'}`,
     customerName: form.nama,
     customerPhone: form.hp,
     travelDate: tanggal,
@@ -446,7 +437,7 @@ function Step2({ form, setForm, onNext, onBack, userProfile }) {
 
   useEffect(() => {
     if (userProfile) {
-      if (!nama) setNama(userProfile.nama || '');
+      if (!nama) setNama(userProfile.name || '');
       if (!hp) setHp(userProfile.no_hp || '');
       if (!email) setEmail(userProfile.email || '');
       if (!kecamatanId) setKecamatanId(userProfile.kecamatan_id || '');
