@@ -176,7 +176,11 @@ function RatingModal({ order, userId, token, onClose, onSubmitSuccess }) {
         if (rating === 0 || loading) return;
         setLoading(true);
         try {
-            await api.post(`/wisata/${order.wisata_id}/rating`, { rating });
+            await api.post(
+                `/wisata/${order.wisata_id}/rating`,
+                { rating },
+                token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+            );
             setSubmitted(true);
             setTimeout(() => {
                 onSubmitSuccess(order.wisata_id, rating);
@@ -310,7 +314,11 @@ function ReviewToast({ order, token, onClose, onSubmitSuccess }) {
         if (rating === 0 || loading) return;
         setLoading(true);
         try {
-            await api.post(`/wisata/${order.wisata_id}/rating`, { rating });
+            await api.post(
+                `/wisata/${order.wisata_id}/rating`,
+                { rating },
+                token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+            );
             setSubmitted(true);
             setTimeout(() => {
                 onSubmitSuccess(order.wisata_id, rating);
@@ -813,7 +821,9 @@ export default function RiwayatTiket() {
             setError(null);
             try {
                 // Gunakan endpoint authenticated — token dikirim via Authorization header
-                const res = await api.get('/tiket');
+                const res = await api.get('/tiket', {
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                });
                 const data = res.data?.data ?? res.data ?? [];
                 setOrders(Array.isArray(data) ? data : []);
             } catch (err) {
